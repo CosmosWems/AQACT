@@ -1,0 +1,14 @@
+# AQACT runtime dependencies
+# Install with:  python -m pip install -r requirements.txt
+Flask>=2.2
+flask-cors>=3.0
+pandas>=1.5
+numpy>=1.23
+scipy>=1.9
+scikit-learn>=1.1
+xgboost>=1.7
+plotly>=5.18
+openpyxl>=3.1
+xlrd>=2.0
+statsmodels>=0.13
+Pillow>=9.0

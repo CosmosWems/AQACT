@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="description" content="AQACT is a local-first air-quality analysis and compliance assessment workspace for sensor data, with a keyless AI assistant powered by Puter.js."/>
+<title>AQACT — Air Quality Analysis &amp; Compliance Assessment Tool</title>
+
+<!-- Puter.js: keyless browser AI. Loaded defensively; the app works offline. -->
+<script src="https://js.puter.com/v2/" defer></script>
+
+<!-- Plotly: local first, CDN fallbacks -->
+<script>
+(function(){
+  var s=document.createElement('script'); s.src='/static/plotly-2.35.2.min.js';
+  s.onerror=function(){
+    var mirrors=['https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js',
+      'https://unpkg.com/plotly.js-dist-min@2.35.2/plotly.min.js'];
+    var idx=0;
+    function tryNext(){
+      if(idx>=mirrors.length){document.getElementById('plotly-error-banner').style.display='flex';return;}
+      var fb=document.createElement('script'); fb.src=mirrors[idx++]; fb.onerror=tryNext;
+      document.head.appendChild(fb);
+    } tryNext();
+  };
+  document.head.appendChild(s);
+})();
+</script>
+<link id="leaflet-css" rel="stylesheet" href="/static/leaflet-1.9.4.css"
+  onerror="this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'"/>
+<script src="/static/js/leaflet-loader.js"></script>
+<link rel="stylesheet" href="/static/maplibre-gl-5.24.0.css"/>
+<script src="/static/maplibre-gl-5.24.0.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'"></script>
+<script src="/static/leaflet-maplibre-gl-0.1.4.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js'"></script>
+
+<!-- Celestial Admin is the single application style layer. -->
+<link rel="stylesheet" href="/static/css/celestial.css"/>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<!-- Reusable AI icon: human head with sparkles. -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <symbol id="icon-ai-head" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2.5a7 7 0 0 0-4.1 12.68V18a1.5 1.5 0 0 0 1.5 1.5h5.2A1.5 1.5 0 0 0 16.1 18v-2.82A7 7 0 0 0 12 2.5Z"/>
+    <path d="M9.3 10.6h.01M14.7 10.6h.01"/>
+    <path d="M9.6 13.6c1.5 1.05 3.3 1.05 4.8 0"/>
+    <path d="M10.1 19.5V21m3.8-1.5V21"/>
+    <path d="M19 3.2v3m-1.5-1.5h3M19.5 8.5v1.6m-.8-.8h1.6"/>
+  </symbol>
+</svg>
+
+<div id="plotly-error-banner" style="display:none">
+  <strong>Charts could not load.</strong> Plotly is bundled locally; restart the app and reload this page.
+</div>
+
+<div id="app-shell">
+  <aside id="sidebar" aria-label="Workspace navigation">
+    <div class="brand">
+      <div id="logo" aria-hidden="true">
+        <img src="/static/air-pollution-8382834.png" alt="" width="26" height="26"/>
+      </div>
+      <div>
+        <div id="app-name">AQACT</div>
+        <div id="app-sub">Air quality workspace</div>
+      </div>
+    </div>
+
+    <div class="nav-label">Workspace</div>
+    <nav id="tabs" aria-label="Sections">
+        <button class="tab-btn active" onclick="switchTab('upload')" data-tab="upload" aria-label="Upload">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <span>Upload</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('batch')" id="tab-batch" data-tab="batch" aria-label="Batch Stack">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg>
+          <span>Batch Stack</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('multistation')" id="tab-multistation" data-tab="multistation" aria-label="Multi-Station">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V8l6-3v16"/><path d="M10 21V11l10-4v14"/><path d="M2 21h20"/></svg>
+          <span>Multi-Station</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('clean')" id="tab-clean" disabled data-tab="clean" aria-label="Clean">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 21 9-9"/><path d="M12 12 6 6"/><path d="m14 4 1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3Z"/></svg>
+          <span>Clean</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('explore')" id="tab-explore" disabled data-tab="explore" aria-label="Explore">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span>Explore</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('plots')" id="tab-plots" disabled data-tab="plots" aria-label="Plots">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
+          <span>Plots</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('map')" id="tab-map" disabled data-tab="map" aria-label="Map">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          <span>Map</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('extreme')" id="tab-extreme" disabled data-tab="extreme" aria-label="Extreme">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>
+          <span>Extreme</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('compliance')" id="tab-compliance" disabled data-tab="compliance" aria-label="Compliance">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 7h14"/><path d="m7 7-3 7a3 3 0 0 0 6 0L7 7Z"/><path d="m17 7-3 7a3 3 0 0 0 6 0l-3-7Z"/></svg>
+          <span>Compliance</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('machinelearning')" id="tab-machinelearning" disabled data-tab="machinelearning" aria-label="Machine Learning">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>
+          <span>Machine Learning</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('modeleval')" id="tab-modeleval" disabled data-tab="modeleval" aria-label="Model Eval">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          <span>Model Eval</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('about')" id="tab-about" data-tab="about" aria-label="About">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg>
+          <span>About</span>
+        </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="offline-pill" id="app-mode-pill"><span class="pulse-dot"></span> <span id="app-mode-label">Local-first · optional AI</span></div>
+      <div class="sidebar-version" id="app-mode-version">v{{ app_version }} · analysis stays local; AI is opt-in</div>
+    </div>
+  </aside>
+
+  <div class="app-body">
+    <header id="topbar">
+      <button class="icon-btn" id="sidebar-toggle" aria-label="Open navigation" aria-expanded="false" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="topbar-heading">
+        <span class="topbar-kicker">Workspace</span>
+        <h1 id="current-section">Upload</h1>
+      </div>
+      <div id="header-right">
+        <button class="topbar-action" id="palette-btn" onclick="openCommandPalette()" aria-label="Open command palette (Ctrl K)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="action-label">Search</span><kbd>Ctrl K</kbd>
+        </button>
+        <button class="topbar-action topbar-action-accent" id="assistant-btn" onclick="openAssistant()">
+          <svg class="ai-icon small"><use href="#icon-ai-head"/></svg><span class="action-label">Ask AI</span>
+        </button>
+        <button class="topbar-action" id="clear-session-btn" onclick="clearSessionAndCache()" title="Clear session, cached data, and preferences">Clear Session &amp; Cache</button>
+        <button class="topbar-action" id="undo-btn" onclick="undoLastEdit()" title="Undo the last data edit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-2"/></svg>
+          <span class="action-label">Undo</span>
+        </button>
+        <div id="session-badge">
+          <span class="session-dot"></span>
+          Session: <span id="session-id-display"></span>
+          <span id="cleaned-dot" style="display:none">· Cleaned</span>
+        </div>
+      </div>
+    </header>
+
+    <div id="main">
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: UPLOAD (single/multi file)                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-upload" class="tab-panel active">
+
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow"><span class="pulse-dot"></span> Local-first scientific workspace</span>
+      <h1>Turn sensor files into defensible air-quality insight.</h1>
+      <p>Upload a logger export, clean it with a provider-aware pipeline, explore trends and anomalies, and export publication-ready figures on this machine. The AI assistant is keyless: it runs in your browser through Puter.js, with automatic model routing and local analysis as the fallback.</p>
+      <div class="hero-actions">
+        <button id="demo-btn" class="btn btn-primary btn-lg" onclick="loadDemoDataset()">Explore demo dataset</button>
+        <button class="btn btn-ghost btn-lg" onclick="document.getElementById('file-input').click()">Choose files</button>
+        <button class="btn btn-ghost btn-lg" onclick="openAssistant()">Ask the assistant</button>
+      </div>
+      <div class="hero-points">
+        <span>Local-first analysis</span><span>Provider-aware cleaning</span><span>Publication exports</span>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="mini-card">
+        <div class="mini-label">PM2.5 · 24 h</div>
+        <div class="mini-value">18.4 <small>µg/m³</small></div>
+        <div class="mini-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="mini-foot"><span class="mini-dot"></span> Within WHO guideline</div>
+      </div>
+      <div class="mini-card mini-card-2">
+        <div class="mini-label">Assistant insight</div>
+        <div class="mini-text">Morning peaks dominate; one sensor spike needs review.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="flip-card" id="upload-flip">
+    <div class="flip-card-inner">
+      <section class="flip-face front" aria-label="Choose data">
+        <div class="flip-card-header">
+          <div>
+            <span class="flip-label">Choose Data</span>
+            <div class="flip-title">Upload Dataset</div>
+            <p class="flip-sub">Drop one or more CSV / Excel files. Multiple files of the same structure are merged automatically. First-time users can start with the demo dataset.</p>
+          </div>
+          <button type="button" class="flip-action" onclick="toggleFlip(this)" aria-pressed="false">Advanced options</button>
+        </div>
+
+        <div class="upload-front-grid">
+          <div>
+            <div id="drop-zone" onclick="document.getElementById('file-input').click()"
+                 ondrop="handleDrop(event,'upload')" ondragover="handleDragOver(event,'drop-zone')" ondragleave="handleDragLeave('drop-zone')">
+              <input type="file" id="file-input" multiple accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileSelect(event,'upload')"/>
+              <div class="dz-icon">📂</div>
+              <div class="dz-text">Drag &amp; drop files here, or click to browse</div>
+              <div class="dz-sub">Supports CSV, XLSX, XLS, TXT</div>
+            </div>
+            <div class="upload-front-actions">
+              <button class="btn btn-primary btn-lg" onclick="uploadFiles()" id="upload-btn">📤 Upload &amp; Preview</button>
+              <button class="btn btn-ghost btn-lg" id="demo-btn-card" onclick="loadDemoDataset()">Use Demo Dataset</button>
+            </div>
+          </div>
+          <div>
+            <ol class="upload-steps">
+              <li>Select one or more sensor exports.</li>
+              <li>Preview detected columns and rows.</li>
+              <li>Clean with a provider-aware pipeline.</li>
+              <li>Explore, plot, and export your evidence.</li>
+            </ol>
+            <div class="flip-divider"></div>
+            <p class="flip-sub" style="margin:0">For daily-file stacking or station comparison, open the advanced side of this card.</p>
+          </div>
+        </div>
+
+        <div id="file-list" style="display:none" class="card">
+          <div class="card-title">Queued Files</div>
+          <div id="file-items"></div>
+        </div>
+
+        <div id="upload-progress" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+          <div style="color:var(--text3);font-size:12px" id="progress-text">Uploading…</div>
+        </div>
+      </section>
+
+      <section class="flip-face back" aria-label="Advanced data loading options">
+        <div class="flip-card-header">
+          <div>
+            <span class="flip-label">Batch Processing · Multi-file Upload</span>
+            <div class="flip-title">Advanced Data Loading Options</div>
+            <p class="flip-sub">The same local upload pipeline, exposed for larger campaigns and multi-station studies.</p>
+          </div>
+          <button type="button" class="flip-action" onclick="toggleFlip(this)" aria-pressed="false">Back to upload</button>
+        </div>
+        <div class="upload-back-grid">
+          <div class="upload-back-item">
+            <h3>Batch Processing</h3>
+            <p>Stack daily logger files into one continuous series before cleaning. File order and source tracking remain handled by the existing batch workflow.</p>
+            <button class="btn btn-ghost btn-sm" onclick="switchTab('batch')" style="margin-top:10px">Open Batch Stack</button>
+          </div>
+          <div class="upload-back-item">
+            <h3>Multi-file Upload</h3>
+            <p>Queue several exports at once. Files with the same structure merge into a single session for analysis.</p>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click();toggleFlip(this)" style="margin-top:10px">Choose files</button>
+          </div>
+          <div class="upload-back-item">
+            <h3>Advanced Data Loading Options</h3>
+            <p>Map source headers to standard air-quality fields after upload, then apply provider-aware validation and resampling in Clean.</p>
+          </div>
+          <div class="upload-back-item">
+            <h3>Bulk Analysis Features</h3>
+            <p>Compare stations, run cohort statistics, and carry the same session into plots, compliance screening, and model evaluation.</p>
+            <button class="btn btn-ghost btn-sm" onclick="switchTab('multistation')" style="margin-top:10px">Open Multi-Station</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Provider info -->
+  <div class="section-divider">Supported Data Providers</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px">
+    <a class="provider-card" href="https://www.purpleair.com/" target="_blank" rel="noopener" style="border-left-color:var(--purple)"><div class="provider-name" style="color:var(--purple)">PURPLEAIR</div><div class="provider-desc">PA-I/PA-II. EPA-TTQ PM2.5 correction. SD card daily files supported via Batch Stack.</div></a>
+    <a class="provider-card" href="https://blues.com/products/airnote/" target="_blank" rel="noopener" style="border-left-color:var(--blue)"><div class="provider-name" style="color:var(--blue)">AIRNOTE</div><div class="provider-desc">Blues Wireless environmental sensors with full met suite.</div></a>
+    <a class="provider-card" href="https://www.airgradient.com/" target="_blank" rel="noopener" style="border-left-color:var(--teal)"><div class="provider-name" style="color:var(--teal)">AIRGRADIENT</div><div class="provider-desc">Open-source monitors. CO₂, PM, NO₂, VOC.</div></a>
+    <a class="provider-card" href="https://www.clarity.io/" target="_blank" rel="noopener" style="border-left-color:var(--green)"><div class="provider-name" style="color:var(--green)">CLARITY</div><div class="provider-desc">Clarity Node laser particle counters.</div></a>
+    <a class="provider-card" href="https://www.airqo.net/" target="_blank" rel="noopener" style="border-left-color:var(--yellow)"><div class="provider-name" style="color:var(--yellow)">AIRQO</div><div class="provider-desc">AirQo low-cost sensor network across Africa.</div></a>
+    <a class="provider-card" href="https://airqoon.com/" target="_blank" rel="noopener" style="border-left-color:var(--orange)"><div class="provider-name" style="color:var(--orange)">AIRQOON</div><div class="provider-desc">AirQoon balloon-borne sensor with full met data.</div></a>
+    <a class="provider-card" href="https://www.habitatmap.org/airbeam" target="_blank" rel="noopener" style="border-left-color:var(--pink)"><div class="provider-name" style="color:var(--pink)">AIRBEAM</div><div class="provider-desc">GPS-tagged mobile monitor. Daily session files supported in Batch Stack.</div></a>
+    <a class="provider-card" href="https://sensirion.com/products/catalog/?category=Air+Quality" target="_blank" rel="noopener" style="border-left-color:#06b6d4"><div class="provider-name" style="color:#06b6d4">SENSIRION SEN5x/SPS30</div><div class="provider-desc">PM1–PM10 + NC fractions + VOC/NOx index + CO₂.</div></a>
+    <a class="provider-card" href="https://atmotube.com/" target="_blank" rel="noopener" style="border-left-color:#8b5cf6"><div class="provider-name" style="color:#8b5cf6">ATMOTUBE PRO</div><div class="provider-desc">Wearable/portable. PM1/2.5/10, VOC, GPS, met.</div></a>
+    <a class="provider-card" href="http://www.plantower.com/en/" target="_blank" rel="noopener" style="border-left-color:#10b981"><div class="provider-name" style="color:#10b981">PLANTOWER PMS5003/7003</div><div class="provider-desc">PM std/atm + particle counts per 0.1L. Logger CSV.</div></a>
+    <div class="provider-card" style="border-left-color:var(--text3);cursor:default"><div class="provider-name" style="color:var(--text3)">GENERIC / AUTO-DETECT</div><div class="provider-desc">Auto-maps column names for any CSV with recognisable air quality fields.</div></div>
+  </div>
+
+  <div id="upload-preview" style="display:none">
+    <div class="section-divider">Data Preview</div>
+    <div class="card">
+      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
+        <span class="badge" id="preview-rows-badge" style="background:#1d4ed820;color:var(--blue);border:1px solid #1d4ed840"></span>
+        <span class="badge" id="preview-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+      </div>
+      <div class="data-table-wrap"><table class="data-table" id="preview-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: BATCH STACK                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-batch" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Batch File Stacking</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">
+    Stack multiple daily files (e.g. PurpleAir SD card files, AirBeam session CSVs) into one continuous time-series.
+    Files are sorted chronologically before concatenation.
+  </p>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Batch Configuration</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Data Provider</label>
+          <select class="form-select" id="batch-provider">
+            <option value="purpleair">PurpleAir (SD card daily files)</option>
+            <option value="airbeam">AirBeam (session files)</option>
+            <option value="airgradient">AirGradient</option>
+            <option value="airnote">Airnote</option>
+            <option value="clarity">Clarity</option>
+            <option value="airqo">AirQo</option>
+            <option value="airqoon">AirQoon</option>
+            <option value="sensirion">Sensirion SEN5x/SPS30</option>
+            <option value="atmotube">Atmotube Pro</option>
+            <option value="pms5003">Plantower PMS5003/7003</option>
+            <option value="generic">Generic / Auto-Detect</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Station / Deployment Name</label>
+          <input type="text" class="form-input" id="batch-station-name" placeholder="Optional station name" autocomplete="off"/>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">How It Works</div>
+        <div style="color:var(--text3);font-size:12px;line-height:1.7">
+          <div style="margin-bottom:6px">📁 Select all daily CSV/Excel files at once using the file picker.</div>
+          <div style="margin-bottom:6px">🔢 Files are automatically sorted by filename (which typically encodes the date).</div>
+          <div style="margin-bottom:6px">📎 A <code>_source_file</code> column is added to track which file each row came from.</div>
+          <div>⚙️ After stacking, the data is passed to the standard <strong>Clean</strong> tab as a single session.</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div id="batch-drop-zone" onclick="document.getElementById('batch-file-input').click()"
+           ondrop="handleDrop(event,'batch')" ondragover="handleDragOver(event,'batch-drop-zone')" ondragleave="handleDragLeave('batch-drop-zone')">
+        <input type="file" id="batch-file-input" multiple accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileSelect(event,'batch')"/>
+        <div class="dz-icon">📅</div>
+        <div class="dz-text">Drop daily files here</div>
+        <div class="dz-sub">Select all daily CSV files at once</div>
+      </div>
+
+      <div id="batch-file-list" style="display:none" class="card">
+        <div class="card-title" id="batch-file-count">Daily Files</div>
+        <div id="batch-file-items" style="max-height:220px;overflow-y:auto"></div>
+      </div>
+
+      <div id="batch-progress" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="batch-progress-fill" style="width:0%"></div></div>
+        <div style="color:var(--text3);font-size:12px" id="batch-progress-text">Stacking files…</div>
+      </div>
+
+      <button class="btn btn-teal btn-lg btn-full" onclick="batchUpload()" id="batch-btn">
+        📦 Stack & Load Files
+      </button>
+    </div>
+  </div>
+
+  <div id="batch-result" style="display:none">
+    <div class="section-divider">Stacked Dataset Preview</div>
+    <div class="card">
+      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
+        <span class="badge batch-badge" id="batch-stacked-badge"></span>
+        <span class="badge" id="batch-rows-badge" style="background:#1d4ed820;color:var(--blue);border:1px solid #1d4ed840"></span>
+        <span class="badge" id="batch-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+      </div>
+      <div id="batch-warnings" style="display:none;margin-bottom:12px"></div>
+      <div style="background:var(--bg2);padding:14px;margin-bottom:14px;border-radius:8px">
+        <div class="card-title">Map Source Columns</div>
+        <div style="color:var(--text3);font-size:12px;margin-bottom:10px">
+          Optional: map uploaded headers to standard fields before cleaning.
+        </div>
+        <div id="batch-mapping-grid" class="grid2" style="gap:10px"></div>
+      </div>
+      <div class="data-table-wrap"><table class="data-table" id="batch-preview-table"></table></div>
+      <div style="margin-top:14px;color:var(--text3);font-size:12px">
+        ✅ Session loaded. Switch to <strong>Clean</strong> tab to process this stacked dataset.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MULTI-STATION                                      -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-multistation" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Multi-Station Comparative Analysis</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">
+    Upload datasets from different locations or stations. Assign a name to each file (or group of files),
+    then run comparative statistics across all stations simultaneously.
+  </p>
+
+  <!-- Step 1: Upload -->
+  <div class="card">
+    <div class="card-title">Step 1 — Upload Station Files</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Data Provider (same for all stations)</label>
+        <select class="form-select" id="ms-provider">
+          <option value="purpleair">PurpleAir</option>
+          <option value="airbeam">AirBeam</option>
+          <option value="airgradient">AirGradient</option>
+          <option value="airnote">Airnote</option>
+          <option value="clarity">Clarity</option>
+          <option value="airqo">AirQo</option>
+          <option value="airqoon">AirQoon</option>
+          <option value="sensirion">Sensirion</option>
+          <option value="atmotube">Atmotube</option>
+          <option value="pms5003">PMS5003</option>
+          <option value="generic">Generic / Auto-Detect</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end">
+        <div style="font-size:12px;color:var(--text3)">💡 Each file becomes a station. Names are optional and default to file names.</div>
+      </div>
+    </div>
+
+    <div id="ms-drop-zone" onclick="document.getElementById('ms-file-input').click()"
+         ondrop="handleDrop(event,'ms')" ondragover="handleDragOver(event,'ms-drop-zone')" ondragleave="handleDragLeave('ms-drop-zone')">
+      <input type="file" id="ms-file-input" multiple accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileSelect(event,'ms')"/>
+      <div class="dz-icon">🏙</div>
+      <div class="dz-text">Drop files from different stations / locations</div>
+      <div class="dz-sub">Each file = one station. Multiple files with the same name label will be stacked.</div>
+    </div>
+
+    <!-- Station label editor -->
+    <div id="ms-station-editor" style="display:none">
+      <div class="card-title" style="margin-top:8px">Station Labels</div>
+      <div id="ms-station-labels"></div>
+      <div id="ms-upload-progress" style="display:none;margin-top:12px">
+        <div class="progress-bar"><div class="progress-fill" id="ms-progress-fill" style="width:0%"></div></div>
+        <div style="color:var(--text3);font-size:12px" id="ms-progress-text">Uploading…</div>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="msUpload()" id="ms-upload-btn" style="margin-top:14px">
+        🏙 Upload All Stations
+      </button>
+    </div>
+  </div>
+
+  <div class="card" id="ms-mapping-card" style="display:none">
+    <div class="card-title">Step 2 — Map Source Columns</div>
+    <div style="color:var(--text3);font-size:12px;margin-bottom:10px">
+      Apply shared header mappings across stations. Unmatched columns, including categories such as indoor/outdoor, remain available for analysis.
+    </div>
+    <div id="ms-mapping-grid" class="grid2" style="gap:10px"></div>
+  </div>
+
+  <!-- Step 3: Clean -->
+  <div class="card" id="ms-clean-card" style="display:none">
+    <div class="card-title">Step 3 — Clean All Stations</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Start Date (optional)</label>
+        <input type="date" class="form-input" id="ms-start"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date (optional)</label>
+        <input type="date" class="form-input" id="ms-end"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div class="toggle-wrap" onclick="toggleMSOpt('apply_pm25_correction')">
+        <div class="toggle-track on" id="ms-tog-pm25"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Apply PM2.5 Correction</span>
+      </div>
+      <div class="toggle-wrap" onclick="toggleMSOpt('resample_hourly')">
+        <div class="toggle-track on" id="ms-tog-hourly"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Resample to Hourly</span>
+      </div>
+    </div>
+    <button class="btn btn-success btn-lg" onclick="msClean()" id="ms-clean-btn">
+      🧹 Clean All Stations
+    </button>
+    <div id="ms-clean-loader" class="loader" style="display:none"><div class="spinner"></div>Cleaning stations…</div>
+    <div id="ms-clean-result" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- Step 4: Comparative Analysis -->
+  <div class="card" id="ms-analysis-card" style="display:none">
+    <div class="card-title">Step 4 — Run Comparative Analysis</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Pollutant / Column</label>
+        <select class="form-select" id="ms-col">
+          <option value="pm2.5" selected>PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="NO2">NO2</option>
+          <option value="O3">O3</option>
+          <option value="CO">CO</option>
+          <option value="SO2">SO2</option>
+          <option value="NOx">NOx</option>
+          <option value="CO2">CO2</option>
+          <option value="VOC">VOC</option>
+          <option value="temperature">Temperature</option>
+          <option value="RH">RH</option>
+          <option value="pm1.0">PM1.0</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time Resolution</label>
+        <select class="form-select" id="ms-freq">
+          <option value="h">Hourly</option>
+          <option value="D" selected>Daily</option>
+          <option value="W">Weekly</option>
+          <option value="ME">Monthly</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">WHO 24h Standard (μg/m³)</label>
+        <input type="number" class="form-input" id="ms-who24" placeholder="e.g. 15" step="0.1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">EPA 24h Standard (μg/m³)</label>
+        <input type="number" class="form-input" id="ms-epa24" placeholder="e.g. 35" step="0.1"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" onclick="runComparative()" id="comp-run-btn">
+        📊 Run Comparative Analysis
+      </button>
+      <button class="btn btn-success btn-sm" onclick="msLoadMerged()" id="ms-load-plot-btn" style="display:none">
+        Load Merged Data into Plots
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="msExport('csv')">⬇ Export Merged CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="msExport('xlsx')">⬇ Export Multi-Sheet Excel</button>
+    </div>
+  </div>
+
+  <div id="comp-loader" class="loader" style="display:none"><div class="spinner"></div>Running comparative analysis…</div>
+
+  <!-- Results -->
+  <div id="comp-results" style="display:none">
+    <div class="section-divider">Station Rankings</div>
+    <div id="comp-ranking" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="card" style="padding:8px;overflow-x:auto;margin-bottom:16px">
+      <table class="data-table" id="comp-desc-table"></table>
+    </div>
+
+    <div class="section-divider">Time Series Comparison</div>
+    <div class="section-divider">Exceedance Timeline</div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px"><div id="compliance-daily-plot" style="min-height:340px"></div></div>
+      <div class="card" style="padding:8px"><div id="compliance-hourly-plot" style="min-height:340px"></div></div>
+    </div>
+    <div class="card" style="padding:8px;margin-bottom:16px">
+      <div id="comp-ts-plot" style="min-height:380px"></div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Diurnal Profiles</div>
+        <div id="comp-diurnal-plot" style="min-height:300px"></div>
+      </div>
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Monthly Means</div>
+        <div id="comp-monthly-plot" style="min-height:300px"></div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Seasonal Means</div>
+        <div id="comp-seasonal-plot" style="min-height:300px"></div>
+      </div>
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Pairwise Correlation Matrix</div>
+        <div id="comp-corr-plot" style="min-height:300px"></div>
+      </div>
+    </div>
+
+    <div class="section-divider">Percentile Comparison</div>
+    <div class="card" style="padding:8px;margin-bottom:16px">
+      <div id="comp-pct-plot" style="min-height:300px"></div>
+    </div>
+
+    <div id="comp-exceedance-card" style="display:none">
+      <div class="section-divider">Exceedance Analysis</div>
+      <div id="comp-exceedance-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    </div>
+
+    <div id="comp-anova-card" class="card" style="display:none;margin-bottom:16px">
+      <div class="card-title">ANOVA Test (Are station means significantly different?)</div>
+      <div id="comp-anova-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: CLEAN                                              -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-clean" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Data Cleaning & Processing</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Select provider, configure options, then clean.</p>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Provider & Cleaning Options</div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Data Provider</label>
+          <select class="form-select" id="clean-provider">
+            <option value="purpleair">PurpleAir</option>
+            <option value="airnote">Airnote</option>
+            <option value="airgradient">AirGradient</option>
+            <option value="clarity">Clarity</option>
+            <option value="airqo">AirQo</option>
+            <option value="airqoon">AirQoon</option>
+            <option value="airbeam">AirBeam</option>
+            <option value="sensirion">Sensirion SEN5x/SPS30</option>
+            <option value="atmotube">Atmotube Pro</option>
+            <option value="pms5003">Plantower PMS5003/7003</option>
+            <option value="generic">Generic / Auto-Detect</option>
+          </select>
+        </div>
+        <div class="grid2" style="margin-bottom:14px">
+          <div class="form-group"><label class="form-label" for="clean-location">Location <span style="color:var(--text3)">(optional)</span></label><input class="form-input" id="clean-location" placeholder="Optional location" autocomplete="off"/></div>
+          <div class="form-group"><label class="form-label" for="clean-station-name">Station Name <span style="color:var(--text3)">(optional)</span></label><input class="form-input" id="clean-station-name" placeholder="Optional station name" autocomplete="off"/></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+          <div class="toggle-wrap" onclick="toggleOpt('apply_pm25_correction')">
+            <div class="toggle-track off" id="tog-apply_pm25_correction"><div class="toggle-thumb"></div></div>
+            <span class="toggle-label">Apply EPA-TTQ PM2.5 Correction</span>
+          </div>
+          <div class="toggle-wrap" onclick="toggleOpt('resample_hourly')">
+            <div class="toggle-track off" id="tog-resample_hourly"><div class="toggle-thumb"></div></div>
+            <span class="toggle-label">Resample to Hourly Averages</span>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:9px;margin:0 0 16px;font-size:12px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="clean-drop-empty-columns"/>
+          Drop columns that are 100% missing after cleaning
+        </label>
+        <div class="grid2" style="margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">Start Date</label>
+            <input type="date" class="form-input" id="clean-start"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date</label>
+            <input type="date" class="form-input" id="clean-end"/>
+          </div>
+        </div>
+        <div class="card" id="airnote-mapping-card" style="display:none;background:var(--bg2);padding:14px;margin:0 0 16px">
+          <div class="card-title" style="margin-bottom:6px">Provider Column Mapping</div>
+          <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">
+            Map uploaded headers to canonical fields used by all provider cleaners. Leave unavailable fields as None.
+          </div>
+          <div id="airnote-mapping-grid" class="grid2" style="gap:10px"></div>
+        </div>
+        <button class="btn btn-primary btn-full btn-lg" onclick="cleanData()" id="clean-btn">
+          🧪 Clean Data
+        </button>
+      </div>
+
+      <div class="card" id="export-card" style="display:none">
+        <div class="card-title">Export Cleaned Data</div>
+        <div class="flex flex-gap">
+          <button class="btn btn-ghost btn-sm" onclick="exportData('csv')">⬇ CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportData('xlsx')">⬇ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-title">Column Manager</div>
+        <button class="btn btn-ghost btn-sm" onclick="dropFullyMissingColumns()" id="drop-empty-cols-btn" style="width:100%;margin-bottom:10px">
+          Remove 100% missing columns now
+        </button>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">This is reversible with Undo. Only columns with no observed values are removed.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="grid2" style="gap:8px">
+            <select class="form-select" id="rename-old" style="font-size:12px"></select>
+            <input type="text" class="form-input" id="rename-new" placeholder="New name" style="font-size:12px"/>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="renameColumn()">✏️ Rename</button>
+          <div class="grid2" style="gap:8px">
+            <select class="form-select" id="delete-col" style="font-size:12px"></select>
+            <button class="btn btn-danger btn-sm" onclick="deleteColumn()">🗑 Delete</button>
+          </div>
+          <input type="text" class="form-input" id="add-col-name" placeholder="New column name" style="font-size:12px"/>
+          <input type="text" class="form-input" id="add-col-expr" placeholder="Expression (e.g. pm2.5 * 1.1)" style="font-size:12px"/>
+          <button class="btn btn-success btn-sm" onclick="addColumn()">➕ Add Column</button>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Temporal Aggregation</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Frequency</label>
+            <select class="form-select" id="agg-freq">
+              <option value="H">Hourly</option>
+              <option value="D">Daily</option>
+              <option value="W">Weekly</option>
+              <option value="M">Monthly</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Function</label>
+            <select class="form-select" id="agg-func">
+              <option value="mean">Mean</option>
+              <option value="median">Median</option>
+              <option value="max">Max</option>
+              <option value="min">Min</option>
+              <option value="sum">Sum</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-full" onclick="aggregateData()">⏱ Aggregate</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Fill Missing Values</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Method</label>
+            <select class="form-select" id="interp-method">
+              <option value="linear">Linear</option>
+              <option value="time">Time</option>
+              <option value="spline">Spline</option>
+              <option value="ffill">Forward Fill</option>
+              <option value="bfill">Back Fill</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Gap (hours)</label>
+            <input type="number" class="form-input" id="interp-limit" placeholder="unlimited" min="1"/>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-full" onclick="interpolateData()">🩹 Fill Gaps</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Remove Outliers</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Column</label>
+            <select class="form-select" id="out-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Method</label>
+            <select class="form-select" id="out-method">
+              <option value="iqr">IQR</option>
+              <option value="zscore">Z-Score</option>
+              <option value="percentile">Percentile</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Threshold (IQR multiplier / σ / percentile)</label>
+          <input type="number" class="form-input" id="out-thresh" value="3" step="0.5"/>
+        </div>
+        <button class="btn btn-warning btn-sm btn-full" onclick="removeOutliers()">🚫 Remove Outliers</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cleaned-preview" style="display:none">
+    <div class="section-divider">Cleaned Data Preview</div>
+    <div class="card">
+      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
+        <span class="badge" id="clean-rows-badge" style="background:#10b98120;color:var(--green);border:1px solid #10b98140"></span>
+        <span class="badge" id="clean-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+      </div>
+      <div class="data-table-wrap"><table class="data-table" id="cleaned-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: EXPLORE                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-explore" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">Data Exploration</h2>
+  <div class="section-divider">Assistant insights</div>
+  <div class="insight-toolbar">
+    <div>
+      <div class="insight-heading">What stands out in this dataset</div>
+      <div class="insight-sub">Prioritised findings with simple and technical explanations.</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="refreshInsights()" id="insights-refresh-btn">Refresh insights</button>
+  </div>
+  <div id="insight-grid" class="insight-grid" aria-live="polite">
+    <div class="insight-skeleton"></div><div class="insight-skeleton"></div><div class="insight-skeleton"></div>
+  </div>
+
+  <div id="explore-loader" class="loader" style="display:none"><div class="spinner"></div>Loading statistics…</div>
+  <div class="flip-card" id="explore-flip">
+    <div class="flip-card-inner">
+      <section class="flip-face front" aria-label="Simple view of dataset statistics">
+        <div class="flip-card-header">
+          <div>
+            <span class="flip-label">Simple View</span>
+            <div class="flip-title">What the data is telling us</div>
+            <p class="flip-sub">The same underlying information in plain language, with key findings and visual summaries for non-technical interpretation.</p>
+          </div>
+          <button type="button" class="flip-action" onclick="toggleFlip(this)" aria-pressed="false">Technical view</button>
+        </div>
+        <div id="explore-simple-content" class="simple-view" aria-live="polite">
+          <div class="simple-summary">Load a dataset to see a plain-language summary of its size, completeness, and measurement range.</div>
+        </div>
+      </section>
+
+      <section class="flip-face back" aria-label="Technical view of dataset statistics">
+        <div class="flip-card-header">
+          <div>
+            <span class="flip-label">Technical View</span>
+            <div class="flip-title">Statistics &amp; diagnostics</div>
+            <p class="flip-sub">Detailed statistics, advanced metrics, scientific terminology, model diagnostics, and data quality indicators.</p>
+          </div>
+          <button type="button" class="flip-action" onclick="toggleFlip(this)" aria-pressed="false">Simple view</button>
+        </div>
+        <div id="explore-content" style="display:none">
+          <div class="section-divider">Dataset Overview</div>
+          <div id="explore-shape-grid" class="grid4" style="margin-bottom:20px"></div>
+
+          <div class="section-divider">Missing Data</div>
+          <div id="missing-grid" class="grid-auto" style="margin-bottom:20px"></div>
+
+          <div class="section-divider">Columns</div>
+          <div id="columns-grid" style="display:none;margin-bottom:20px">
+            <div id="columns-list" class="grid-auto"></div>
+          </div>
+
+          <div class="section-divider">Descriptive Statistics</div>
+          <div class="card" style="padding:8px;overflow-x:auto">
+            <table class="data-table" id="desc-table"></table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: PLOTS                                              -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-plots" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">Plot Dashboard</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Plot Builder</div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Plot Type</label>
+        <select class="form-select" id="plot-type" onchange="updatePlotControls()">
+          <optgroup label="Time Series">
+            <option value="timeseries">Time Series</option>
+            <option value="area">Area Chart</option>
+            <option value="calendar">Calendar Heatmap</option>
+            <option value="trend">Trend Analysis</option>
+            <option value="timevariation">Time Variation (hour/day/month)</option>
+            <option value="percentile">Percentile Plot</option>
+          </optgroup>
+          <optgroup label="Statistical">
+            <option value="boxplot">Box Plot</option>
+            <option value="histogram">Histogram</option>
+            <option value="seasonal_box">Seasonal Box Plot</option>
+            <option value="diurnal">Diurnal Profile</option>
+            <option value="monthly">Monthly Profile</option>
+            <option value="time_of_week">Time-of-Week Heatmap</option>
+          </optgroup>
+          <optgroup label="Relationships">
+            <option value="scatter">Scatter + Regression</option>
+            <option value="correlation">Correlation Matrix</option>
+            <option value="windrose">Wind Rose</option>
+            <option value="polar">OpenAir-style Polar Plot</option>
+            <option value="pollutionrose">Pollution Rose</option>
+            <option value="annulus">Annulus Plot</option>
+            <option value="cpf">Conditional Probability Function (CPF)</option>
+            <option value="bivariate_polar">Bivariate Polar Plot</option>
+          </optgroup>
+          <optgroup label="AQI">
+            <option value="aqi_bar">AQI Category Bar</option>
+          </optgroup>
+          <optgroup label="Sensor-Specific">
+            <option value="pm_size_dist">PM Size Distribution</option>
+            <option value="nc_timeseries">NC Fraction Timeseries (SPS30/SEN5x)</option>
+            <option value="co2_met">CO2 + Met Dual-Axis (AirGradient/Sensirion)</option>
+            <option value="radar">Multi-Pollutant Radar</option>
+            <option value="violin">Violin Plot</option>
+            <option value="bubble">Bubble Chart (X, Y, Size)</option>
+            <option value="exceedance">Exceedance Frequency Curve</option>
+          </optgroup>
+          <optgroup label="Spatial">
+            <option value="spatial">Spatial Heatmap (lat/lon)</option>
+            <option value="density_map">Spatial Density Heatmap</option>
+            <option value="cluster_map">Spatial Cluster Map</option>
+            <option value="temporal_geospatial">Temporal Geospatial Facets</option>
+          </optgroup>
+          <optgroup label="Distribution">
+            <option value="ridgeline">Ridgeline Plot</option>
+            <option value="density">Density Plot</option>
+            <option value="ecdf">ECDF</option>
+            <option value="beeswarm">Beeswarm Plot</option>
+          </optgroup>
+          <optgroup label="Correlation &amp; Relationship">
+            <option value="pairplot">Pairplot / Scatter Matrix</option>
+            <option value="correlogram">Correlogram (ACF)</option>
+            <option value="hexbin">Hexbin Plot</option>
+            <option value="connected_scatter">Connected Scatter</option>
+          </optgroup>
+          <optgroup label="Evolution">
+            <option value="streamgraph">Streamgraph</option>
+            <option value="rolling_trend">Rolling Trend &amp; Envelope</option>
+            <option value="seasonal_decomposition">Seasonal Decomposition</option>
+          </optgroup>
+          <optgroup label="Composition">
+            <option value="treemap">Treemap</option>
+            <option value="sunburst">Sunburst</option>
+            <option value="waffle">Waffle Chart</option>
+          </optgroup>
+          <optgroup label="Ranking">
+            <option value="ordered_bar">Ordered Bar</option>
+            <option value="lollipop">Lollipop Plot</option>
+            <option value="cleveland_dot">Cleveland Dot Plot</option>
+          </optgroup>
+          <optgroup label="Scientific Analytics">
+            <option value="heatmap">Binned Heatmap</option>
+            <option value="uncertainty_bands">Uncertainty Bands</option>
+            <option value="confidence_intervals">Bootstrap Confidence Intervals</option>
+            <option value="anomaly_detection">Anomaly Detection</option>
+            <option value="residual_diagnostics">Residual Diagnostics</option>
+            <option value="forecast_verification">Forecast Verification</option>
+            <option value="sensor_qc">Sensor QC Report</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Multi-column select -->
+      <div id="plot-ctrl-multi" style="display:block">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Columns (click to select)</label>
+          <div id="col-checkboxes" class="flex flex-wrap" style="gap:6px;margin-top:4px;max-height:120px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <!-- Single column -->
+      <div id="plot-ctrl-single" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Column</label>
+          <select class="form-select" id="plot-single-col"></select>
+        </div>
+      </div>
+      <div id="plot-ctrl-time-aggregate" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group"><label class="form-label">Time averaging</label><select class="form-select" id="plot-time-average"><option value="">Raw observations</option><option value="h">Hourly</option><option value="D">Daily</option><option value="W">Weekly</option><option value="MS">Monthly</option></select></div>
+          <div class="form-group"><label class="form-label">Statistic</label><select class="form-select" id="plot-time-stat" onchange="updatePlotControls()"><option value="mean">Mean</option><option value="median">Median</option><option value="percentile">Percentile</option><option value="frequency">Valid record count</option></select></div>
+        </div>
+        <div class="form-group" id="plot-time-percentile-group" style="display:none"><label class="form-label">Percentile (0–100)</label><input class="form-input" id="plot-time-percentile" type="number" min="0" max="100" value="95"/></div>
+      </div>
+
+      <!-- XY scatter / bubble -->
+      <div id="plot-ctrl-xy" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">X Column</label>
+            <select class="form-select" id="plot-x-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Y Column</label>
+            <select class="form-select" id="plot-y-col"></select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="bubble-size-group" style="display:none">
+            <label class="form-label">Size by (Bubble only)</label>
+            <select class="form-select" id="plot-size-col"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wind rose -->
+      <div id="plot-ctrl-wind" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-ws-group">
+            <label class="form-label">Wind Speed Column</label>
+            <select class="form-select" id="plot-ws-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wind Direction Column</label>
+            <select class="form-select" id="plot-wd-col"></select>
+          </div>
+        </div>
+        <div id="plot-polar-settings" style="display:none" class="grid2">
+          <div class="form-group"><label class="form-label">Wind bin width (m/s)</label><input class="form-input" id="plot-polar-bin" type="number" min="0.2" step="0.1" value="0.5"/></div>
+          <div class="form-group"><label class="form-label">Smoothing (bins)</label><input class="form-input" id="plot-polar-smooth" type="number" min="0.5" step="0.1" value="1.4"/></div>
+        </div>
+        <div class="form-group" id="plot-annulus-period-group" style="display:none">
+          <label class="form-label">Annulus period</label>
+          <select class="form-select" id="plot-annulus-period">
+            <option value="hour">Hour of day</option><option value="weekday">Day of week</option>
+            <option value="season">Season</option><option value="trend">Year / trend</option>
+          </select>
+        </div>
+        <div class="form-group" id="plot-cpf-threshold-group" style="display:none">
+          <label class="form-label">Pollution threshold (CPF)</label>
+          <input class="form-input" type="number" id="plot-cpf-threshold" min="0" step="any" placeholder="Blank = 75th percentile"/>
+        </div>
+      </div>
+
+      <!-- Calendar controls -->
+      <div id="plot-ctrl-calendar" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Year filter</label>
+            <select class="form-select" id="plot-cal-year">
+              <option value="">All years (merged)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Colour ramp</label>
+            <select class="form-select" id="plot-cal-cmap">
+              <option value="YlOrRd" selected>YlOrRd</option>
+              <option value="Jet">Jet</option>
+              <option value="Spectral">Spectral</option>
+              <option value="RdYlGn">RdYlGn</option>
+              <option value="Coolwarm">Coolwarm</option>
+              <option value="Hot">Hot</option>
+              <option value="Viridis">Viridis</option>
+              <option value="Plasma">Plasma</option>
+              <option value="Inferno">Inferno</option>
+              <option value="Magma">Magma</option>
+              <option value="Cividis">Cividis</option>
+              <option value="Blues">Blues</option>
+              <option value="Greens">Greens</option>
+              <option value="RdBu">RdBu</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2)">
+            <input type="checkbox" id="plot-cal-reverse" style="accent-color:var(--blue)"/>
+            Reverse colour ramp
+          </label>
+        </div>
+      </div>
+
+      <!-- Box plot group-by -->
+      <div id="plot-ctrl-boxgroup" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Group by</label>
+          <select class="form-select" id="plot-box-group">
+            <option value="month">Month</option>
+            <option value="season" selected>Season</option>
+            <option value="hour">Hour of Day</option>
+            <option value="location">Location / Station</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Histogram bins -->
+      <div id="plot-ctrl-bins" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Number of bins: <span id="plot-bins-label">40</span></label>
+          <input type="range" id="plot-bins" min="5" max="200" value="40" step="5"
+            style="width:100%;accent-color:var(--blue)"
+            oninput="document.getElementById('plot-bins-label').textContent=this.value"/>
+        </div>
+      </div>
+
+      <!-- Shared controls for the expanded data-to-viz chart library -->
+      <div id="plot-ctrl-advanced" style="display:none">
+        <div class="section-divider" style="margin:6px 0 12px">Chart options</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-adv-group-group" style="display:none">
+            <label class="form-label" for="plot-adv-group">Group / category</label>
+            <select class="form-select" id="plot-adv-group"></select>
+          </div>
+          <div class="form-group" id="plot-adv-value-group" style="display:none">
+            <label class="form-label" for="plot-adv-value" id="plot-adv-value-label">Secondary value (optional)</label>
+            <select class="form-select" id="plot-adv-value"></select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-adv-latlon-group" style="display:none">
+            <label class="form-label" for="plot-lat-col">Latitude column</label>
+            <select class="form-select" id="plot-lat-col"></select>
+          </div>
+          <div class="form-group" id="plot-adv-lon-group" style="display:none">
+            <label class="form-label" for="plot-lon-col">Longitude column</label>
+            <select class="form-select" id="plot-lon-col"></select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-adv-period-group" style="display:none">
+            <label class="form-label" for="plot-adv-period">Time period</label>
+            <select class="form-select" id="plot-adv-period">
+              <option value="auto">Auto</option>
+              <option value="hour">Hour of day</option>
+              <option value="weekday">Day of week</option>
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+              <option value="season">Season</option>
+              <option value="year">Year</option>
+            </select>
+          </div>
+          <div class="form-group" id="plot-adv-window-group" style="display:none">
+            <label class="form-label" for="plot-adv-window">Rolling window</label>
+            <input class="form-input" id="plot-adv-window" type="number" min="1" step="1" value="24"/>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-adv-method-group" style="display:none">
+            <label class="form-label" for="plot-adv-method">Detection method</label>
+            <select class="form-select" id="plot-adv-method">
+              <option value="rolling">Rolling deviation</option>
+              <option value="zscore">Z-score</option>
+              <option value="iqr">IQR</option>
+            </select>
+          </div>
+          <div class="form-group" id="plot-adv-threshold-group" style="display:none">
+            <label class="form-label" for="plot-adv-threshold">Threshold / multiplier</label>
+            <input class="form-input" id="plot-adv-threshold" type="number" step="any" placeholder="Auto"/>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-adv-cluster-group" style="display:none">
+            <label class="form-label" for="plot-adv-clusters">Spatial clusters</label>
+            <input class="form-input" id="plot-adv-clusters" type="number" min="1" max="12" step="1" value="3"/>
+          </div>
+          <div class="form-group" id="plot-adv-lags-group" style="display:none">
+            <label class="form-label" for="plot-adv-lags">Autocorrelation lags</label>
+            <input class="form-input" id="plot-adv-lags" type="number" min="1" max="120" step="1" value="24"/>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="plot-adv-topn-group" style="display:none">
+            <label class="form-label" for="plot-adv-topn">Top N categories</label>
+            <input class="form-input" id="plot-adv-topn" type="number" min="1" max="50" step="1" value="15"/>
+          </div>
+          <div class="form-group" id="plot-adv-stat-group" style="display:none">
+            <label class="form-label" for="plot-adv-stat">Aggregation</label>
+            <select class="form-select" id="plot-adv-stat">
+              <option value="mean">Mean</option>
+              <option value="median">Median</option>
+              <option value="sum">Sum</option>
+              <option value="count">Count</option>
+              <option value="max">Maximum</option>
+              <option value="min">Minimum</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="plot-ctrl-comparison" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Hue / colour by</label>
+            <select class="form-select" id="plot-color-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Facet / small multiples</label>
+            <select class="form-select" id="plot-facet-col"></select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Hue palette</label>
+          <select class="form-select" id="plot-hue-palette">
+            <option value="Plotly">Plotly</option>
+            <option value="D3">D3</option>
+            <option value="G10">G10</option>
+            <option value="Safe">Colorblind-safe</option>
+            <option value="Set2">Set 2</option>
+            <option value="Pastel">Pastel</option>
+            <option value="Dark24">Dark 24</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Scatter standalone colour-by -->
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Chart Title (optional)</label>
+        <input type="text" class="form-input" id="plot-title" placeholder="Auto-generated if blank"/>
+      </div>
+
+      <button class="btn btn-primary btn-full" onclick="generatePlot()" id="plot-btn">
+        📊 Generate Plot
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:4px">Live Preview</div>
+      <div id="plot-loader" class="loader" style="display:none"><div class="spinner"></div>Generating…</div>
+      <div id="plot-area">
+        <div class="plot-empty">
+          <div class="plot-empty-icon">📊</div>
+          <div style="font-size:13px;color:var(--text4)">Configure and click Generate Plot</div>
+        </div>
+      </div>
+      <div class="plot-actions">
+        <button class="btn btn-ghost btn-sm" onclick="savePlot()">💾 Save to Gallery</button>
+        <button class="btn btn-ghost btn-sm" onclick="explainLastPlot()">Ask AI to explain</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="card publication-card" id="publication-card">
+    <div class="publication-head">
+      <div>
+        <div class="card-title" style="margin-bottom:4px">Publication figure</div>
+        <p class="hint">Compose a white-page figure with title, caption and provenance metadata. PNG and PDF are rendered locally; SVG keeps the chart vector.</p>
+      </div>
+      <span class="badge badge-soft">Print-ready</span>
+    </div>
+    <div class="pub-grid">
+      <div class="form-group">
+        <label class="form-label" for="pub-figure-number">Figure number</label>
+        <input class="form-input" id="pub-figure-number" placeholder="e.g. 2" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="pub-size">Page size</label>
+        <select class="form-select" id="pub-size">
+          <option value="wide" selected>Wide (12 × 7 in)</option>
+          <option value="a4">A4 portrait</option>
+          <option value="a4-landscape">A4 landscape</option>
+          <option value="a3">A3 portrait</option>
+          <option value="letter">Letter portrait</option>
+          <option value="square">Square (8 × 8 in)</option>
+          <option value="slide">Slide (16:9)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="pub-dpi">Resolution</label>
+        <select class="form-select" id="pub-dpi">
+          <option value="200">200 dpi · screen</option>
+          <option value="300" selected>300 dpi · print</option>
+          <option value="450">450 dpi · high detail</option>
+          <option value="600">600 dpi · maximum</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="pub-source">Source / credit</label>
+        <input class="form-input" id="pub-source" placeholder="e.g. Riverside sensor network" />
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label" for="pub-caption">Caption</label>
+      <textarea class="form-input" id="pub-caption" rows="2" placeholder="Explain what the figure shows and the main takeaway."></textarea>
+    </div>
+    <div class="publication-actions">
+      <button class="btn btn-primary" onclick="exportPublication('pdf')" id="pub-pdf-btn">Download PDF</button>
+      <button class="btn btn-ghost" onclick="exportPublication('png')" id="pub-png-btn">Download PNG</button>
+      <button class="btn btn-ghost" onclick="exportPublication('svg')" id="pub-svg-btn">Download SVG</button>
+      <button class="btn btn-ghost" onclick="suggestCaption()" id="pub-caption-btn">Suggest caption</button>
+      <button class="btn btn-teal" onclick="explainLastPlot()">Explain this chart</button>
+      <span id="pub-status" class="pub-status" role="status"></span>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div id="gallery-section" style="display:none">
+    <div class="section-divider">Saved Plots</div>
+    <div id="gallery-grid" class="grid2"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MAP                                                -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-map" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">Spatial Map</h2>
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+      <div class="form-group" style="min-width:190px">
+        <label class="form-label" for="map-style">Basemap</label>
+        <select class="form-select" id="map-style" onchange="applyMapStyle(this.value)">
+          <option value="openfreemap">OpenFreeMap · Liberty</option>
+          <option value="dark">OpenFreeMap · Dark</option>
+          <option value="positron">OpenFreeMap · Positron</option>
+          <option value="satellite">Satellite</option>
+          <option value="topographic" selected>Topographic</option>
+          <option value="offline">Offline grid</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:210px">
+        <label class="form-label">Basemap</label>
+        <div class="map-basemap-note" id="map-basemap-note">
+          <span class="map-basemap-dot"></span><span id="map-basemap-text">Topographic</span>
+        </div>
+      </div>
+      <div class="form-group" style="min-width:140px">
+        <label class="form-label">Colour by Parameter</label>
+        <select class="form-select" id="map-color-param" onchange="reloadMapData()">
+          <option value="pm2.5">PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="AQI">AQI</option>
+          <option value="CO2">CO2</option>
+          <option value="temperature">Temperature</option>
+          <option value="RH">Humidity</option>
+          <option value="O3">O3</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="toggle-wrap" onclick="toggleMapLayer('heat')">
+          <div class="toggle-track on" id="tog-heat"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Heatmap</span>
+        </div>
+        <div class="toggle-wrap" onclick="toggleMapLayer('markers')">
+          <div class="toggle-track on" id="tog-markers"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Markers</span>
+        </div>
+      </div>
+      <div style="margin-left:auto;color:var(--text3);font-size:12px" id="map-pt-count">—</div>
+    </div>
+  </div>
+  <div style="position:relative">
+    <div id="map"></div>
+    <div id="map-coords" class="map-coords">Lat —  Lon —</div>
+    <div id="aqi-legend">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">AQI Scale</div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#00e400"></div><span style="color:var(--text3);font-size:11px">Good (0–50)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#ffff00"></div><span style="color:var(--text3);font-size:11px">Moderate (51–100)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#ff7e00"></div><span style="color:var(--text3);font-size:11px">Sensitive (101–150)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#ff0000"></div><span style="color:var(--text3);font-size:11px">Unhealthy (151–200)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#8f3f97"></div><span style="color:var(--text3);font-size:11px">Very Unhealthy (201–300)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#7e0023"></div><span style="color:var(--text3);font-size:11px">Hazardous (&gt;300)</span></div>
+    </div>
+  </div>
+  <div id="map-stats" class="grid4" style="margin-top:14px;display:none"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: EXTREME                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-extreme" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Extreme Value Analysis</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Block maxima, Gumbel return levels, WHO/EPA exceedance, top-N events.</p>
+  <div class="card">
+    <div class="card-title">Analysis Configuration</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:16px">
+      <div class="form-group">
+        <label class="form-label">Pollutant / Column</label>
+        <select class="form-select" id="ext-col">
+          <option value="pm2.5">PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="pm1.0">PM1.0</option>
+          <option value="O3">O3</option>
+          <option value="CO">CO</option>
+          <option value="SO2">SO2</option>
+          <option value="NOx">NOx</option>
+          <option value="NO2">NO2</option>
+          <option value="CO2">CO2</option>
+          <option value="VOC">VOC</option>
+          <option value="temperature">Temperature</option>
+          <option value="RH">Humidity</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Block Period</label>
+        <select class="form-select" id="ext-block">
+          <option value="D">Daily</option>
+          <option value="W">Weekly</option>
+          <option value="ME" selected>Monthly</option>
+          <option value="A">Annual</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Top-N Events</label>
+        <input type="number" class="form-input" id="ext-topn" value="10"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Histogram Bins</label>
+        <input type="number" class="form-input" id="ext-bins" value="40"/>
+      </div>
+    </div>
+    <div class="flex flex-gap" style="margin-bottom:16px">
+      <div class="toggle-wrap" onclick="toggleOpt2('who')">
+        <div class="toggle-track on" id="tog2-who"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Compare WHO Standards</span>
+      </div>
+      <div class="toggle-wrap" onclick="toggleOpt2('epa')">
+        <div class="toggle-track on" id="tog2-epa"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Compare Country's EPA Guidelines</span>
+      </div>
+    </div>
+    <div class="card" style="background:var(--bg2);padding:14px;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:6px">Guideline Values (Optional)</div>
+      <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">
+        Enter values for the selected pollutant. Blank fields use the built-in defaults.
+      </div>
+      <div class="grid2" style="gap:14px">
+        <div class="form-group">
+          <label class="form-label">WHO 24h</label>
+          <input type="number" class="form-input" id="ext-who-24h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA 24h</label>
+          <input type="number" class="form-input" id="ext-epa-24h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WHO Annual</label>
+          <input type="number" class="form-input" id="ext-who-annual" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA Annual</label>
+          <input type="number" class="form-input" id="ext-epa-annual" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WHO 8h</label>
+          <input type="number" class="form-input" id="ext-who-8h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA 8h</label>
+          <input type="number" class="form-input" id="ext-epa-8h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WHO 1h</label>
+          <input type="number" class="form-input" id="ext-who-1h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA 1h</label>
+          <input type="number" class="form-input" id="ext-epa-1h" min="0" step="any" placeholder="Default"/>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="runExtreme()">⚡ Run Extreme Analysis</button>
+  </div>
+  <div id="ext-loader" class="loader" style="display:none"><div class="spinner"></div>Running extreme value analysis…</div>
+  <div id="ext-results" style="display:none">
+    <div class="section-divider">Descriptive Statistics</div>
+    <div id="ext-desc-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="section-divider">Standard Comparison</div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" id="ext-who-card" style="border-top:3px solid var(--green)"><div class="card-title">WHO Guidelines</div><div id="ext-who-body"></div></div>
+      <div class="card" id="ext-epa-card" style="border-top:3px solid var(--blue)"><div class="card-title">Country's EPA</div><div id="ext-epa-body"></div></div>
+    </div>
+    <div class="section-divider">Return Levels (Gumbel)</div>
+    <div id="ext-rl-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px"><div id="ext-hist-plot" style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="ext-pct-plot"  style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="ext-bm-plot"   style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="ext-rl-plot"   style="min-height:300px"></div></div>
+    </div>
+    <div class="section-divider">Top Extreme Events</div>
+    <div class="card" style="padding:8px">
+      <div class="data-table-wrap"><table class="data-table" id="ext-events-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: COMPLIANCE                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-compliance" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Compliance Monitor</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Identify guideline exceedances, document episodes, and prepare an evidence-based response.</p>
+  <div class="card">
+    <div class="card-title">Monitoring Configuration</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group"><label class="form-label">Sensor reading</label><select class="form-select" id="compliance-col"></select></div>
+    </div>
+    <div class="card" style="background:var(--bg2);padding:14px;margin:0 0 16px">
+      <div class="card-title" style="margin-bottom:6px">Guideline Values (Optional)</div>
+      <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">Enter values for the selected pollutant. Blank fields use the built-in defaults.</div>
+      <div class="grid2" style="gap:10px">
+        <div class="form-group"><label class="form-label">WHO 24h</label><input type="number" class="form-input" id="compliance-who-24h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA 24h</label><input type="number" class="form-input" id="compliance-epa-24h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">WHO Annual</label><input type="number" class="form-input" id="compliance-who-annual" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA Annual</label><input type="number" class="form-input" id="compliance-epa-annual" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">WHO 8h</label><input type="number" class="form-input" id="compliance-who-8h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA 8h</label><input type="number" class="form-input" id="compliance-epa-8h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">WHO 1h</label><input type="number" class="form-input" id="compliance-who-1h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA 1h</label><input type="number" class="form-input" id="compliance-epa-1h" min="0" step="any" placeholder="Default"/></div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="runCompliance()" id="compliance-btn">⚖ Assess Compliance</button>
+  </div>
+  <div id="compliance-loader" class="loader" style="display:none"><div class="spinner"></div>Assessing readings…</div>
+  <div id="compliance-results" style="display:none">
+    <div id="compliance-summary" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="section-divider">Guideline Results</div>
+    <div id="compliance-standards" class="grid2" style="margin-bottom:20px"></div>
+    <div class="section-divider">Exceedance Timeline</div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px"><div id="compliance-daily-plot" style="min-height:340px"></div></div>
+      <div class="card" style="padding:8px"><div id="compliance-hourly-plot" style="min-height:340px"></div></div>
+    </div>
+    <div class="section-divider">AI-Assisted Recommendations</div>
+    <div class="card" id="compliance-recommendations"><div class="card-title">Evidence-based response guidance</div></div>
+    <div style="color:var(--text4);font-size:11px;margin-top:10px">Screening support only. Confirm applicable law, averaging period, units, calibration, and public-health protocol with the responsible authority.</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MACHINE LEARNING                                  -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-machinelearning" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Machine Learning Analysis</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Use transparent time-series models to assess trends, recurring hourly patterns, and unusual readings.</p>
+  <div class="card">
+    <div class="card-title">Model Configuration</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group"><label class="form-label">Target reading</label><select class="form-select" id="ml-target"></select></div>
+      <div class="form-group"><label class="form-label">Analysis model</label>
+        <select class="form-select" id="ml-model">
+          <option value="linear_regression">Linear Regression</option>
+          <option value="random_forest">Random Forest</option>
+          <option value="svm">Support Vector Regression (SVM)</option>
+          <option value="xgboost">XGBoost</option>
+          <option value="gradient_boosting">Gradient Boosting</option>
+          <option value="extra_trees">Extra Trees</option>
+          <option value="trend">Linear trend and holdout test</option>
+          <option value="seasonal">Hourly seasonal baseline</option>
+          <option value="anomaly">Robust anomaly detection</option>
+        </select>
+      </div>
+      <div class="form-group" id="ml-z-wrap" style="display:none"><label class="form-label">Anomaly threshold (robust z-score)</label><input type="number" class="form-input" id="ml-z" value="3" min="1" step="0.1"/></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><label class="form-label">Feature columns (optional; blank uses all numeric sensor columns)</label><div id="ml-features" class="flex flex-wrap flex-gap"></div></div>
+    <button class="btn btn-primary btn-lg" onclick="runMachineLearning()" id="ml-btn">🤖 Run Analysis</button>
+  </div>
+  <div id="ml-loader" class="loader" style="display:none"><div class="spinner"></div>Running model…</div>
+  <div id="ml-results" style="display:none">
+    <div id="ml-summary" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="card"><div class="card-title">Interpretation</div><div id="ml-message" style="color:var(--text2);line-height:1.6"></div></div>
+    <div class="section-divider">Model Visualization</div>
+    <div class="card" style="padding:8px"><div id="ml-main-plot" style="min-height:360px"></div></div>
+    <div class="card" id="ml-detail-card"><div class="card-title">Model Output</div><div id="ml-detail"></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: ABOUT                                             -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-about" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">AQACT</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Air Quality Analysis &amp; Compliance Assessment Tool</p>
+
+  <div class="flip-card about-flip" id="about-flip">
+    <div class="flip-card-inner">
+      <section class="flip-face front" aria-label="System architecture">
+        <div class="flip-card-header">
+          <div>
+            <span class="flip-label">System Architecture</span>
+            <div class="flip-title">From sensor file to defensible insight</div>
+            <p class="flip-sub">A local-first pipeline. Each stage preserves the evidence trail from raw measurements to reporting.</p>
+          </div>
+          <button type="button" class="flip-action" onclick="toggleFlip(this)" aria-pressed="false">Read about AQACT</button>
+        </div>
+
+        <svg class="arch-svg" viewBox="0 0 1200 220" role="img" aria-labelledby="arch-title arch-desc">
+          <title id="arch-title">AQACT system architecture</title>
+          <desc id="arch-desc">Six connected stages: Data Input, Data Validation, Processing, Analysis Engine, Visualization, and Reporting.</desc>
+          <defs>
+            <marker id="arch-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L7,3 z" fill="#ed6f5c"/>
+            </marker>
+          </defs>
+          <g stroke="#ed6f5c" stroke-width="1.6" marker-end="url(#arch-arrow)">
+            <line x1="196" y1="88" x2="218" y2="88"/>
+            <line x1="404" y1="88" x2="426" y2="88"/>
+            <line x1="612" y1="88" x2="634" y2="88"/>
+            <line x1="820" y1="88" x2="842" y2="88"/>
+            <line x1="1028" y1="88" x2="1050" y2="88"/>
+          </g>
+          <g class="arch-svg-node">
+            <rect x="8" y="30" width="188" height="116" rx="14"/><text x="102" y="65">01 · DATA INPUT</text><text class="arch-svg-small" x="102" y="91">CSV / Excel / demo</text><text class="arch-svg-small" x="102" y="112">Multi-file &amp; batch</text>
+            <rect x="216" y="30" width="188" height="116" rx="14"/><text x="310" y="65">02 · VALIDATION</text><text class="arch-svg-small" x="310" y="91">Header mapping</text><text class="arch-svg-small" x="310" y="112">Range &amp; quality checks</text>
+            <rect x="424" y="30" width="188" height="116" rx="14"/><text x="518" y="65">03 · PROCESSING</text><text class="arch-svg-small" x="518" y="91">Cleaning &amp; resampling</text><text class="arch-svg-small" x="518" y="112">Canonical fields</text>
+            <rect x="632" y="30" width="188" height="116" rx="14"/><text x="726" y="65">04 · ANALYSIS</text><text class="arch-svg-small" x="726" y="91">Statistics, extremes</text><text class="arch-svg-small" x="726" y="112">Models &amp; compliance</text>
+            <rect x="840" y="30" width="188" height="116" rx="14"/><text x="934" y="65">05 · VISUALIZATION</text><text class="arch-svg-small" x="934" y="91">Interactive plots</text><text class="arch-svg-small" x="934" y="112">Maps &amp; galleries</text>
+            <rect x="1048" y="30" width="144" height="116" rx="14" class="accent"/><text x="1120" y="65">06 · REPORT</text><text class="arch-svg-small" x="1120" y="91">Figures</text><text class="arch-svg-small" x="1120" y="112">Exports</text>
+          </g>
+          <g class="arch-svg-foot">
+            <line x1="102" y1="164" x2="1098" y2="164"/>
+            <text x="600" y="193">LOCAL-FIRST DATA FLOW · NO CLOUD DATA STORAGE REQUIRED · AI ASSISTANCE IS OPT-IN</text>
+          </g>
+        </svg>
+        <div class="arch-note"><b>Design intent</b> — every analytical stage is inspectable, repeatable, and exportable from this workspace.</div>
+      </section>
+
+      <section class="flip-face back" aria-label="Purpose and responsible use">
+        <div class="flip-card-header">
+          <div>
+            <span class="flip-label">About the platform</span>
+            <div class="flip-title">Purpose, workflow &amp; responsible use</div>
+          </div>
+          <button type="button" class="flip-action" onclick="toggleFlip(this)" aria-pressed="false">Back to architecture</button>
+        </div>
+        <div class="about-grid">
+          <div class="about-block">
+            <h3>Purpose</h3>
+            <p>AQACT helps researchers, environmental officers, policy makers, and journalists turn sensor data into understandable air-quality evidence. It supports data cleaning, exploration, visualization, compliance screening, and model-based analysis while keeping data and computation local by default.</p>
+          </div>
+          <div class="about-block">
+            <h3>Typical Workflow</h3>
+            <ol>
+              <li>Upload data</li>
+              <li>Validate inputs</li>
+              <li>Explore datasets</li>
+              <li>Generate analyses</li>
+              <li>Create visualizations</li>
+              <li>Export insights</li>
+            </ol>
+          </div>
+          <div class="about-block">
+            <h3>Analysis Scope</h3>
+            <p><strong>Data:</strong> provider-aware cleaning, mapping, missing values, resampling, and export.</p>
+            <p><strong>Statistics:</strong> descriptive metrics, trends, seasonal profiles, extremes, exceedances, correlations, and uncertainty views.</p>
+            <p><strong>Models &amp; compliance:</strong> anomaly detection, supervised models, model evaluation, and WHO / country EPA screening.</p>
+          </div>
+          <div class="about-block">
+            <h3>Responsible Use</h3>
+            <p>Compliance results are screening evidence, not a legal determination. Confirm the applicable standard, units, averaging period, calibration, siting, and data completeness with the responsible authority before enforcement, public alerts, or publication. Sensor data contain assumptions and uncertainty; interpret findings in context and never substitute model output for validated regulatory monitoring.</p>
+          </div>
+        </div>
+        <p class="disclaimer">This platform is not for sale in any form. It is intended solely for research, educational, and scientific air-quality data analysis purposes.</p>
+      </section>
+    </div>
+  </div>
+
+  <div class="section-divider">Developers</div>
+  <div class="developer-grid">
+    <article class="developer-card">
+      <div class="role">Research lead</div>
+      <h3>Cosmos Senyo Wemegah, PhD</h3>
+      <p>Research Fellow, Earth Observation Research Innovation Centre (EORIC)<br/>Lecturer, Department of Atmospheric and Climate Science, University of Energy and Natural Resources (UENR), Sunyani, Ghana</p>
+      <p>Cosmos drives urban climate resilience across West Africa through citizen science, predictive frameworks, environmental monitoring, advanced modeling, air-quality analytics, heatwave forecasting, flood-risk assessment, and early-warning systems.</p>
+      <div class="developer-links">
+        <a href="https://uenr.edu.gh/staff/cosmos-senyo-wemegah-phd/" target="_blank" rel="noopener">UENR</a>
+        <a href="https://eoric.uenr.edu.gh/?bunch_team=mr-cosmos-senyo-wemegah" target="_blank" rel="noopener">EORIC</a>
+        <a href="https://scholar.google.com/citations?user=e5_WEhEAAAAJ&amp;hl=en" target="_blank" rel="noopener">Google Scholar</a>
+        <a href="https://www.linkedin.com/in/cosmos-wemegah/" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://github.com/CosmosWems" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.ecobreathforcities.org/our-team/" target="_blank" rel="noopener">EcoBreath</a>
+      </div>
+    </article>
+    <article class="developer-card">
+      <div class="role">Co-author</div>
+      <h3>Edmund Yamba, PhD</h3>
+      <p>Lecturer and researcher at KNUST department of Meteorology and climate science.</p>
+      <div class="developer-links">
+        <a href="https://webapps.knust.edu.gh/staff/dirsearch/profile/summary/59c2b3f5b7b9.html" target="_blank" rel="noopener">KNUST profile</a>
+        <a href="https://scholar.google.com/citations?user=Br4DbcIAAAAJ&amp;hl=en" target="_blank" rel="noopener">Google Scholar</a>
+      </div>
+    </article>
+    <article class="developer-card">
+      <div class="role">Co-author</div>
+      <h3>Victoria Owusu Tawiah, PhD</h3>
+      <p>Air Quality Program Lead, Kigali Collaborative Research Centre (KCRC), Kigali, Rwanda</p>
+      <p>Victoria advances African air-quality monitoring through sensor networks, transparent data systems, capacity building, and science-to-policy translation that supports resilient urban planning and public health.</p>
+      <div class="developer-links">
+        <a href="https://www.kcrc.rw/?page_id=106" target="_blank" rel="noopener">KCRC</a>
+        <a href="https://gh.linkedin.com/in/victoria-owusu-tawiah-32029547" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://www.ecobreathforcities.org/our-team/" target="_blank" rel="noopener">EcoBreath</a>
+      </div>
+    </article>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MODEL EVAL                                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-modeleval" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Model Evaluation</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Pair an observed column against a model column and compute MB, RMSE, R, IOA, FAC2, KGE and more.</p>
+  <div class="card">
+    <div class="card-title">Column Selection</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end">
+      <div class="form-group">
+        <label class="form-label">Observed Column</label>
+        <select class="form-select" id="eval-obs-col"><option value="">— select —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Model / Reference Column</label>
+        <select class="form-select" id="eval-mod-col"><option value="">— select —</option></select>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="runModelEval()">📈 Run Evaluation</button>
+    </div>
+  </div>
+  <div id="eval-loader" class="loader" style="display:none"><div class="spinner"></div>Computing metrics…</div>
+  <div id="eval-results" style="display:none">
+    <div class="section-divider">Performance Metrics</div>
+    <div id="eval-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px"></div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-family:monospace;font-size:15px;color:var(--text);text-align:center;padding:8px" id="eval-equation"></div>
+    </div>
+    <div id="eval-daily-section" style="display:none">
+      <div class="section-divider">Daily Aggregated Metrics</div>
+      <div id="eval-daily-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    </div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px;grid-column:1/-1"><div id="eval-scatter-plot" style="min-height:420px"></div></div>
+      <div class="card" style="padding:8px"><div id="eval-taylor-plot" style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="eval-bias-plot"   style="min-height:300px"></div></div>
+    </div>
+    <div class="section-divider">Performance Rating</div>
+    <div class="card" id="eval-rating-card">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+        <div style="font-size:28px;font-weight:800" id="eval-rating-label"></div>
+        <div style="font-size:13px;color:var(--text3)" id="eval-rating-sub"></div>
+      </div>
+      <div class="progress-bar" style="margin-bottom:14px">
+        <div class="progress-fill" id="eval-rating-bar" style="width:0%"></div>
+      </div>
+      <div id="eval-criteria-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+  </div>
+
+<aside id="assistant-drawer" class="assistant-drawer" aria-hidden="true" aria-labelledby="assistant-title">
+  <div class="drawer-header">
+    <div class="drawer-title">
+      <svg class="ai-icon"><use href="#icon-ai-head"/></svg>
+      <div>
+        <h2 id="assistant-title">AQACT Assistant</h2>
+        <p id="assistant-subtitle">Keyless AI · Puter.js</p>
+      </div>
+    </div>
+    <span id="assistant-status" class="assistant-status offline" role="status" aria-live="polite">Puter · sign in required</span>
+    <button class="icon-btn" onclick="closeAssistant()" aria-label="Close assistant">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <div class="assistant-context" id="assistant-context">Load a dataset to get contextual answers.</div>
+  <div class="assistant-context" id="ai-usage-panel" aria-live="polite" style="margin-top:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong>AI usage</strong>
+      <button type="button" class="btn btn-ghost btn-sm" id="puter-auth-action" onclick="window.aqatPuterAuth && window.aqatPuterAuth.signIn()">Sign in to Puter</button>
+    </div>
+    <label class="assistant-field" for="assistant-model">Model
+      <select id="assistant-model" aria-label="AI model" onchange="window.aqatAssistant && window.aqatAssistant.setModel(this.value)">
+        <option value="">Auto · route by task</option>
+        <option value="gpt-4o">GPT-4o</option>
+        <option value="claude">Claude</option>
+        <option value="gemini">Gemini</option>
+        <option value="deepseek-chat">DeepSeek</option>
+        <option value="qwen">Qwen</option>
+      </select>
+    </label>
+    <div id="ai-limit-banner" class="assistant-limit-banner" role="alert" hidden></div>
+    <div id="ai-quota-summary">Requests: 0/40 this session · 0/120 this hour · 0/500 today</div>
+    <div id="ai-usage-summary">0 tokens this session</div>
+  </div>
+  <div class="assistant-quick-actions" id="assistant-quick-actions" aria-label="Assistant quick actions">
+    <button type="button" class="quick-action" onclick="aqatAssistant.explainDataset()">Explain dataset</button>
+    <button type="button" class="quick-action" onclick="aqatAssistant.explainChart()">Explain chart</button>
+    <button type="button" class="quick-action" onclick="aqatAssistant.detectPatterns()">Find anomalies</button>
+    <button type="button" class="quick-action" onclick="aqatAssistant.reportSummary()">Report summary</button>
+  </div>
+  <div class="assistant-messages" id="assistant-messages" role="log" aria-live="polite"></div>
+  <div class="assistant-suggestions" id="assistant-suggestions"></div>
+  <div class="assistant-compose">
+    <form id="assistant-form">
+      <textarea id="assistant-input" rows="3" placeholder="Ask about trends, anomalies, compliance, or explain a chart…" aria-label="Ask the assistant"></textarea>
+      <div class="assistant-compose-actions">
+        <label class="chip-btn" for="assistant-image" title="Attach a chart screenshot for visual reasoning">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          Chart image
+        </label>
+        <input type="file" id="assistant-image" accept="image/png,image/jpeg,image/webp" hidden/>
+        <label class="chip-btn" for="assistant-data" title="Attach a data file for comparison or extra context">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+          Data file
+        </label>
+        <input type="file" id="assistant-data" accept=".csv,.tsv,.txt,.json,.xlsx,.xls" hidden/>
+        <button type="button" class="chip-btn" id="assistant-mode" data-mode="simple" onclick="cycleAssistantMode()">Simple language</button>
+        <button class="btn btn-primary btn-sm" type="submit" id="assistant-send">Send</button>
+      </div>
+    </form>
+  </div>
+</aside>
+</div>
+
+<button id="assistant-peek" type="button" onclick="openAssistant()" aria-label="Hover or click to open the AI assistant" title="Hover or click for AI assistant">
+  <svg class="ai-icon small"><use href="#icon-ai-head"/></svg>
+  <span>Ask AI</span>
+</button>
+
+<div id="sidebar-scrim" class="scrim sidebar-scrim" onclick="toggleSidebar(false)"></div>
+
+<button id="assistant-fab" class="assistant-fab" onclick="openAssistant()" aria-label="Open the AI assistant">
+  <svg class="ai-icon"><use href="#icon-ai-head"/></svg>
+  <span>Ask AI</span>
+</button>
+
+<div id="assistant-scrim" class="scrim" onclick="closeAssistant()"></div>
+
+
+<div id="command-palette" class="palette" hidden>
+  <div class="palette-box" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="palette-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="palette-input" placeholder="Search actions, sections and questions…" autocomplete="off" aria-label="Search commands"/>
+      <kbd>Esc</kbd>
+    </div>
+    <div id="palette-results" class="palette-results" role="listbox"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="/static/js/app.js"></script>
+<script src="/static/js/enhancements.js"></script>
+<script type="module" src="/static/js/assistant.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "aqact-map-runtime",
+  "private": true,
+  "description": "Browser assets for the AQACT Leaflet map",
+  "dependencies": {
+    "leaflet": "1.9.4",
+    "leaflet.heat": "0.2.0"
+  }
+}
