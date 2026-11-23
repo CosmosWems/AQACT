@@ -25,6 +25,67 @@
     about: "About",
   };
 
+  /* ── Colour theme ─────────────────────────────────────────────────────── */
+  const THEME_KEY = "aqat-theme";
+  const THEME_MEDIA = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+  function storedTheme() {
+    try {
+      const value = localStorage.getItem(THEME_KEY);
+      return value === "dark" || value === "light" ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function systemTheme() {
+    return THEME_MEDIA && THEME_MEDIA.matches ? "dark" : "light";
+  }
+
+  function applyTheme(theme, persist) {
+    const resolved = theme === "dark" || theme === "light" ? theme : systemTheme();
+    document.documentElement.setAttribute("data-theme", resolved);
+    const button = $("theme-toggle");
+    if (button) {
+      const isDark = resolved === "dark";
+      button.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+      button.setAttribute("aria-pressed", isDark ? "true" : "false");
+      button.title = "Switch colour theme";
+      const label = $("theme-toggle-label");
+      if (label) label.textContent = isDark ? "Light theme" : "Dark theme";
+    }
+    if (persist) {
+      try {
+        localStorage.setItem(THEME_KEY, resolved);
+      } catch (_) {
+        /* storage can be unavailable in private windows */
+      }
+    }
+    try {
+      if (typeof window.rethemePlots === "function") window.rethemePlots();
+    } catch (_) {
+      /* charts may not have been rendered yet */
+    }
+    window.dispatchEvent(new CustomEvent("aqat:theme", { detail: { theme: resolved } }));
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme") || systemTheme();
+    applyTheme(current === "dark" ? "light" : "dark", true);
+  }
+
+  window.applyTheme = applyTheme;
+  window.toggleTheme = toggleTheme;
+
+  if (THEME_MEDIA && !storedTheme()) {
+    const onPreferenceChange = (event) => applyTheme(event.matches ? "dark" : "light", false);
+    if (typeof THEME_MEDIA.addEventListener === "function") {
+      THEME_MEDIA.addEventListener("change", onPreferenceChange);
+    } else if (typeof THEME_MEDIA.addListener === "function") {
+      THEME_MEDIA.addListener(onPreferenceChange);
+    }
+  }
+
   function escapeHtml(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -876,6 +937,7 @@
 
   /* ── Boot ─────────────────────────────────────────────────────────────── */
   function boot() {
+    applyTheme(document.documentElement.getAttribute("data-theme") || systemTheme(), false);
     updateAssistantContext();
     refreshInsights();
     const heading = $("current-section");

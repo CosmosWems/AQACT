@@ -21,6 +21,20 @@ AQACT runs on your machine and keeps all analysis, charts, and exports local. Th
 
 ---
 
+## Latest changes (2026-11-23)
+
+- **Fixed** — AI pre-suggested common queries are now capped at **4** everywhere (local engine, assistant APIs, and the browser chip renderer), leaving more room for the response view and keeping the chips inside the panel.
+- **Fixed** — the follow-up question chips have been removed entirely from the assistant panel. The response output now uses the full remaining panel height while keeping its message padding, fonts, and bubble sizing unchanged. The surrounding usage, quick-action and compose controls are compacted, the composer starts at two rows, and cache-busted asset URLs make the change visible immediately so roughly 7–10 response lines are visible before scrolling.
+- **Changed** — the side navigation's expanded panel is narrower (**210px** instead of 268px) and its labels, section heading, brand subtitle, and footer text are smaller. Navigation icons remain **17px** and all section handlers are unchanged.
+- **Fixed** — the Clean page Data Preview starts **collapsed to five rows** with an arrow/button to expand the full 150-row preview.
+- **Changed** — typography now uses **Inter** for UI/body text, **IBM Plex Mono** with tabular numerals for IDs and tables, and **Lora** for editorial headings; all typefaces are bundled locally.
+- **Changed** — the Clean workspace now reads Data Preview → provider/cleaning options → provider column mapping → four collapsed tool cards → Export → Cleaned Data Preview.
+- **Added** — a system-aware dark theme with a topbar toggle and persisted `aqat-theme` preference.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full dated record.
+
+---
+
 ## Quick Start
 
 ### Recommended
@@ -50,10 +64,10 @@ Click **Explore demo dataset** on the Upload screen. The demo contains 2,160 hou
 
 | Section | Purpose |
 |---------|---------|
-| **Upload** | Drag in one or more sensor exports, choose a provider, map columns, preview the data |
+| **Upload** | Drag in one or more sensor exports and choose a provider; the data preview opens at the top of the Clean page |
 | **Batch Stack** | Combine daily files from one deployment into a continuous time series |
 | **Multi-Station** | Clean and compare several locations side by side |
-| **Clean** | Run the provider pipeline, aggregate, fill gaps, remove outliers, rename/delete/add columns |
+| **Clean** | Data preview first (five rows collapsed, arrow to expand), then full-width provider options and column mapping, followed by collapsed side-by-side cards for Column Manager, Temporal Aggregation, Fill Missing Values, and Remove Outliers |
 | **Explore** | Simple view by default with a flip to the technical view of the same statistics, missing-data diagnostics, prioritised insights, dataset Q&A |
 | **Plots** | Expanded data-to-viz library: distribution, correlation, relationship, evolution, composition, ranking, geospatial, and scientific analytics charts alongside the original time-series, wind, polar, and compliance views; saved gallery and publication export |
 | **Map** | Topographic (OpenTopoMap) keyless default, OpenFreeMap vector styles, satellite/streets raster styles, and a local offline-grid fallback through Leaflet 1.9.4 with MapLibre GL |
@@ -65,7 +79,9 @@ Click **Explore demo dataset** on the Upload screen. The demo contains 2,160 hou
 
 ### Visual system and navigation
 
-AdminCN (the free shadcn/Tailwind dashboard at `preview.themewagon.com/admincn/dashboard/orders/`) supplies the colour and surface system. `static/css/celestial.css` is the only application stylesheet linked by the page: `#ffffff` canvas and cards, `#fafafa` sidebar, `#e5e5e5` borders, a neutral `#171717` primary, the AdminCN chart accents (`#f05100`, `#009588`, `#104e64`, `#fcbb00`, `#f99c00`), and 10px card radii. Typography follows the OpenDesign dating-web example: DM Serif Text at 14px/1.55 for body copy, DM Serif Display for italic display headings and KPI figures, and IBM Plex Mono at 11px with wide tracking for labels and tickers. There is no blur, translucency, glass, theme switching, dark mode, or theme toggle. Legacy stylesheets remain on disk only as unlinked references.
+AdminCN (the free shadcn/Tailwind dashboard at `preview.themewagon.com/admincn/dashboard/orders/`) supplies the colour and surface system. `static/css/celestial.css` is the only application stylesheet linked by the page: `#ffffff` canvas and cards, `#fafafa` sidebar, `#e5e5e5` borders, a neutral `#171717` primary, the AdminCN chart accents (`#f05100`, `#009588`, `#104e64`, `#fcbb00`, `#f99c00`), and 10px card radii in the light default. Typography uses three screen-first families: Inter at 14px/1.55 with tabular numerals for UI and body copy, Lora for editorial headings and figures, and IBM Plex Mono with wide tracking for labels, IDs, tickers, and data tables. There is no blur, translucency, or glass. Legacy stylesheets remain on disk only as unlinked references.
+
+A dark theme is available from the topbar colour-theme control. On first visit the page follows your system `prefers-color-scheme` setting, defaulting to light when no preference is reported; an explicit choice is remembered in `localStorage` as `aqat-theme`. Charts are relaid out with theme-aware Plotly colours, and all other analysis, map, export, and AI behaviour is unchanged.
 
 The workspace rail is icon-only by default. Hovering or keyboard-focusing it smoothly reveals the full section labels and hierarchy without a floating panel or heavy motion. On small screens the rail becomes a conventional slide-out menu. The assistant panel is hidden on load: hover the slim right-edge **Ask AI** rail (or focus it with the keyboard) to preview it, or click that rail, the topbar **Ask AI** button, or the floating button to pin it open. Moving the pointer away from an unpinned panel closes it again; the close button always hides it. When open it occupies its own column rather than covering the workspace, and its conversation area is wide and tall so answers stay readable with less scrolling. Upload, Explore, and About use click-to-flip cards so forms, drop zones, and links stay usable; each face keeps the same underlying data and handlers. Explore opens on the **Simple View** and flips to the Technical View. Reduced-motion preferences disable flips and transitions.
 
@@ -245,8 +261,9 @@ AQAT_v2_fixed4/
 │   └── index.html             ← Single-page application shell
 ├── static/
 │   ├── css/celestial.css      ← Only linked stylesheet: AdminCN standard
-│   ├── fonts/dm-serif-*.woff2 ← Bundled OpenDesign DM Serif Display/Text faces
-│   ├── fonts/ibm-plex-mono-*.woff2 ← Bundled IBM Plex Mono faces
+│   ├── fonts/inter-latin.woff2 ← Bundled Inter sans face for UI/body copy
+│   ├── fonts/lora-*.woff2 ← Bundled Lora serif faces for editorial headings
+│   ├── fonts/ibm-plex-mono-*.woff2 ← Bundled IBM Plex Mono faces for codes and tables
 │   ├── air-pollution-8382834.png ← Flaticon brand mark beside AQACT
 │   ├── css/app.css            ← Unlinked legacy reference
 │   ├── css/modern.css         ← Unlinked legacy reference

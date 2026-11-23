@@ -102,14 +102,18 @@ class AqactApiTests(unittest.TestCase):
         for label in ("OpenFreeMap", "Satellite", "Topographic", "Offline grid"):
             self.assertIn(label, index_html)
 
-    def test_no_theme_switching_keeps_offline_basemap_regression(self) -> None:
-        """Theme logic is gone; the keyless map layer lifecycle remains intact."""
+    def test_theme_switching_keeps_offline_basemap_regression(self) -> None:
+        """The dark theme must not disturb the keyless map layer lifecycle."""
         root = Path(__file__).resolve().parents[1]
+        index_html = (root / "templates" / "index.html").read_text(encoding="utf-8")
         enhancements = (root / "static" / "js" / "enhancements.js").read_text(encoding="utf-8")
         app_js = (root / "static" / "js" / "app.js").read_text(encoding="utf-8")
-        lowered = enhancements.lower()
-        for stale in ("rethemeplots", "inittheme", "togglecolour theme", "data-theme", "aqat-theme"):
-            self.assertNotIn(stale, lowered)
+        for needle in ("aqat-theme", "prefers-color-scheme", "data-theme", "id=\"theme-toggle\""):
+            self.assertIn(needle, index_html)
+        for needle in ("applyTheme", "toggleTheme", "aqat-theme", "matchMedia", "window.rethemePlots"):
+            self.assertIn(needle, enhancements)
+        for needle in ("data-theme", "rethemePlots", "Plotly.relayout"):
+            self.assertIn(needle, app_js)
         self.assertIn("mapBaseLayer", app_js)
         self.assertIn(".redraw()", app_js)
         self.assertIn("useOfflineBasemap", app_js)
@@ -174,7 +178,9 @@ class AqactApiTests(unittest.TestCase):
         sid = self._demo_session()
         suggestions = self.client.get(f"/api/assistant/suggestions?session_id={sid}")
         self.assertEqual(suggestions.status_code, 200)
-        self.assertTrue(suggestions.get_json()["suggestions"])
+        suggestion_list = suggestions.get_json()["suggestions"]
+        self.assertTrue(suggestion_list)
+        self.assertLessEqual(len(suggestion_list), 4, "suggestion API must stay compact")
 
         answer = self.client.post("/api/assistant/ask", json={
             "session_id": sid,
@@ -331,11 +337,27 @@ class AqactApiTests(unittest.TestCase):
         assistant_js = (root / "static" / "js" / "assistant.js").read_text(encoding="utf-8")
 
         self.assertIn('/static/css/celestial.css', index_html)
+        self.assertIn('/static/css/celestial.css?v=2.0.1', index_html)
+        self.assertIn('/static/js/assistant.js?v=2.0.1', index_html)
         for legacy in ("app.css", "modern.css", "components.css", "atelier.css"):
             self.assertNotIn(f'/static/css/{legacy}', index_html)
-        for stale in ("data-theme", "toggleTheme", "aqat-theme", "theme-btn", "hero-glow"):
-            self.assertNotIn(stale, index_html)
+        for needed in (
+            'id="theme-toggle"', "toggleTheme()", "aqat-theme",
+            "prefers-color-scheme", 'id="theme-toggle-label"',
+        ):
+            self.assertIn(needed, index_html)
         self.assertNotIn("theme", assistant_js.lower())
+
+        # The follow-up question strip is gone; response output keeps the full
+        # remaining panel height instead of sharing it with suggestion chips.
+        self.assertNotIn('id="assistant-suggestions"', index_html)
+        self.assertNotIn("renderSuggestions", assistant_js)
+        self.assertNotIn("loadSuggestions", assistant_js)
+        self.assertNotIn("suggestion-chip", celestial_css)
+        self.assertNotIn("assistant-suggestions", celestial_css)
+        self.assertIn("With the question strip removed", celestial_css)
+        self.assertIn("7-10 response lines", celestial_css)
+        self.assertIn('id="assistant-input" rows="2"', index_html)
 
         for token in (
             "--primary: #171717",
@@ -344,28 +366,43 @@ class AqactApiTests(unittest.TestCase):
             "background: #fafafa",
             "#sidebar:hover",
             "#sidebar:focus-within",
+            "--sidebar-width: 210px",
+            "#sidebar #tabs .tab-btn",
+            "#sidebar .nav-label { font-size: 9px",
             ".flip-card",
             ".simple-view",
             "#assistant-peek",
             "@font-face",
-            '"DM Serif Display"',
-            '"DM Serif Text"',
+            '"Inter"',
+            '"Lora"',
             '"IBM Plex Mono"',
-            "font: 14px/1.55 var(--serif-body)",
+            "--font-sans:",
+            "--font-mono:",
+            "--font-serif:",
+            "font: 14px/1.55 var(--font-sans)",
+            "font-variant-numeric: tabular-nums",
             "--assistant-width: 380px",
             "--assistant-width: 420px",
             "min(390px, 100vw)",
+            '[data-theme="dark"]',
+            "color-scheme: dark",
+            ".clean-tool-grid",
+            ".clean-tool-summary",
+            ".clean-tool-arrow",
+            ".preview-header",
+            "nth-child(n+6)",
         ):
             self.assertIn(token, celestial_css)
         lowered = celestial_css.lower()
         self.assertNotIn("geist", lowered)
         for forbidden in (
+            "--sidebar-width: 255px",
+            "width: 268px",
             "backdrop-filter",
             "blur(",
             "rgba(",
             "transparent",
             "--glass",
-            "[data-theme",
             ".hero-glow",
             "body::before",
             "gradient(",
@@ -407,7 +444,8 @@ class AqactApiTests(unittest.TestCase):
 
         for function in ("openAssistant()", "closeAssistant()", "toggleAssistant()",
                          "switchTab('upload')", "switchTab('plots')", "loadDemoDataset()",
-                         "uploadFiles()", "renderSimpleExplore", "toggleFlip(this)"):
+                         "uploadFiles()", "renderSimpleExplore", "toggleFlip(this)",
+                         "toggleDataPreview()", "window.toggleDataPreview"):
             self.assertIn(function, index_html + app_js + assistant_js)
         for hook in ("upload-flip", "explore-flip", "about-flip", "file-input",
                      "file-items", "upload-progress", "progress-fill",
@@ -423,6 +461,49 @@ class AqactApiTests(unittest.TestCase):
         technical_at = index_html.index('id="explore-content"')
         self.assertLess(simple_at, technical_at)
         self.assertIn("Simple View", index_html[simple_at - 600:simple_at])
+
+        # Upload preview now belongs at the top of the Clean workspace, followed
+        # by two full-width panels and four collapsed side-by-side tools.
+        clean_at = index_html.index('id="panel-clean"')
+        next_panel_at = index_html.index('id="panel-explore"')
+        preview_at = index_html.index('id="upload-preview"')
+        provider_at = index_html.index("Provider &amp; Cleaning Options")
+        mapping_at = index_html.index('id="airnote-mapping-card"')
+        tools_at = index_html.index('class="clean-tool-grid"')
+        export_at = index_html.index('id="export-card"')
+        cleaned_at = index_html.index('id="cleaned-preview"')
+        self.assertLess(clean_at, preview_at)
+        self.assertLess(preview_at, provider_at)
+        self.assertLess(provider_at, mapping_at)
+        self.assertLess(mapping_at, tools_at)
+        self.assertLess(tools_at, export_at)
+        self.assertLess(export_at, cleaned_at)
+        self.assertLess(cleaned_at, next_panel_at)
+        for hook in (
+            "preview-rows-badge", "preview-cols-badge", "preview-table",
+            "clean-provider", "airnote-mapping-grid", "clean-btn",
+            "drop-empty-cols-btn", "rename-old", "rename-new", "delete-col",
+            "add-col-name", "add-col-expr", "agg-freq", "agg-func",
+            "interp-method", "interp-limit", "out-col", "out-method", "out-thresh",
+        ):
+            self.assertIn(f'id="{hook}"', index_html)
+        for card_id in (
+            "clean-tool-column-manager", "clean-tool-temporal-aggregation",
+            "clean-tool-fill-missing", "clean-tool-remove-outliers",
+        ):
+            self.assertIn(f'<details class="card clean-tool-card" id="{card_id}">', index_html)
+        self.assertEqual(index_html.count('class="clean-tool-arrow"'), 4)
+
+        # Data Preview starts collapsed to five rows; the header arrow expands it.
+        self.assertIn(
+            '<button type="button" class="preview-header" onclick="toggleDataPreview()" '
+            'aria-expanded="false" aria-controls="preview-table-wrap">',
+            index_html,
+        )
+        self.assertIn('id="preview-table-wrap"', index_html)
+        self.assertIn('id="preview-toggle-label"', index_html)
+        self.assertIn('class="preview-arrow"', index_html)
+        self.assertIn("panel.classList.toggle('expanded'", app_js)
 
     def test_assistant_health_preserves_routing_contract(self) -> None:
         """Health keeps the exact routing strings and exposes quota config."""

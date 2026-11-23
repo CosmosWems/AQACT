@@ -33,15 +33,51 @@ window.STATE = STATE;
    Celestial chart layout
    ───────────────────────────────────────────────────────── */
 function getCelestialLayout() {
+  const dark = document.documentElement && document.documentElement.getAttribute('data-theme') === 'dark';
+  const surface = dark ? '#171717' : '#ffffff';
+  const ink = dark ? '#fafafa' : '#0a0a0a';
+  const grid = dark ? '#333333' : '#e2e8f0';
+  const axis = dark ? '#525252' : '#b7c6db';
+  const legendBorder = dark ? '#3f3f46' : '#d6e1f0';
+  const legendInk = dark ? '#fafafa' : '#001737';
   return {
-    paper_bgcolor:'#ffffff', plot_bgcolor:'#ffffff',
-    font:{ color:'#0a0a0a', size:11, family:'IBM Plex Mono, ui-monospace, monospace' },
+    paper_bgcolor:surface, plot_bgcolor:surface,
+    font:{ color:ink, size:11, family:'IBM Plex Mono, ui-monospace, monospace' },
     margin:{ t:44,r:20,b:56,l:60 },
-    xaxis:{ gridcolor:'#e2e8f0', zerolinecolor:'#b7c6db', linecolor:'#b7c6db' },
-    yaxis:{ gridcolor:'#e2e8f0', zerolinecolor:'#b7c6db', linecolor:'#b7c6db' },
-    legend:{ bgcolor:'#ffffff', bordercolor:'#d6e1f0', borderwidth:1, font:{color:'#001737'} },
+    xaxis:{ gridcolor:grid, zerolinecolor:axis, linecolor:axis },
+    yaxis:{ gridcolor:grid, zerolinecolor:axis, linecolor:axis },
+    legend:{ bgcolor:surface, bordercolor:legendBorder, borderwidth:1, font:{color:legendInk} },
   };
 }
+
+function rethemePlots() {
+  if (typeof Plotly === 'undefined') return;
+  const base = getCelestialLayout();
+  const patch = {
+    paper_bgcolor:base.paper_bgcolor,
+    plot_bgcolor:base.plot_bgcolor,
+    'font.color':base.font.color,
+    'font.family':base.font.family,
+    'xaxis.gridcolor':base.xaxis.gridcolor,
+    'xaxis.zerolinecolor':base.xaxis.zerolinecolor,
+    'xaxis.linecolor':base.xaxis.linecolor,
+    'yaxis.gridcolor':base.yaxis.gridcolor,
+    'yaxis.zerolinecolor':base.yaxis.zerolinecolor,
+    'yaxis.linecolor':base.yaxis.linecolor,
+    'legend.bgcolor':base.legend.bgcolor,
+    'legend.bordercolor':base.legend.bordercolor,
+    'legend.font.color':base.legend.font.color,
+  };
+  document.querySelectorAll('.js-plotly-plot').forEach((el) => {
+    try {
+      const result = Plotly.relayout(el, patch);
+      if (result && typeof result.catch === 'function') result.catch(() => {});
+    } catch (_) {
+      /* A partially rendered plot can reject a relayout; later renders use the new layout. */
+    }
+  });
+}
+window.rethemePlots = rethemePlots;
 
 function applyCelestialLayout(extra) {
   const base = getCelestialLayout();
@@ -172,6 +208,18 @@ function buildTable(tableId, columns, rows, maxRows=150) {
     h += `<tfoot><tr><td colspan="${columns.length}" class="table-footer">Showing ${maxRows} of ${rows.length.toLocaleString()} rows</td></tr></tfoot>`;
   tbl.innerHTML = h;
 }
+
+function toggleDataPreview(force) {
+  const panel = document.getElementById('upload-preview');
+  if (!panel) return;
+  const expanded = typeof force === 'boolean' ? force : !panel.classList.contains('expanded');
+  panel.classList.toggle('expanded', expanded);
+  const header = panel.querySelector('.preview-header');
+  if (header) header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  const label = document.getElementById('preview-toggle-label');
+  if (label) label.textContent = expanded ? 'Collapse preview' : 'Show full preview';
+}
+window.toggleDataPreview = toggleDataPreview;
 
 function refreshColumnDropdowns() {
   const cols = STATE.columns;
@@ -456,6 +504,7 @@ async function uploadFiles() {
     enableTabs();
     document.getElementById('preview-rows-badge').textContent=`${data.shape[0].toLocaleString()} rows`;
     document.getElementById('preview-cols-badge').textContent=`${data.shape[1]} columns`;
+    toggleDataPreview(false);
     buildTable('preview-table', data.columns, data.preview);
     document.getElementById('upload-preview').style.display='block';
     refreshColumnDropdowns();
@@ -498,6 +547,7 @@ async function batchUpload() {
     document.getElementById('session-badge').style.display='flex';
     document.getElementById('session-id-display').textContent=data.session_id;
     enableTabs();
+    toggleDataPreview(false);
     refreshColumnDropdowns();
     // Show result
     document.getElementById('batch-stacked-badge').textContent=`📦 ${data.stacked_count} files stacked`;

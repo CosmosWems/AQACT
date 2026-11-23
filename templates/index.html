@@ -6,6 +6,18 @@
 <meta name="description" content="AQACT is a local-first air-quality analysis and compliance assessment workspace for sensor data, with a keyless AI assistant powered by Puter.js."/>
 <title>AQACT — Air Quality Analysis &amp; Compliance Assessment Tool</title>
 
+<!-- Resolve the theme before the stylesheet loads so the first paint is correct. -->
+<script>
+(function(){
+  var key='aqat-theme', theme=null;
+  try { theme=localStorage.getItem(key); } catch (_) {}
+  if (theme!=='light' && theme!=='dark') {
+    theme=window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
+
 <!-- Puter.js: keyless browser AI. Loaded defensively; the app works offline. -->
 <script src="https://js.puter.com/v2/" defer></script>
 
@@ -37,7 +49,7 @@
   onerror="this.onerror=null;this.src='https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js'"></script>
 
 <!-- Celestial Admin is the single application style layer. -->
-<link rel="stylesheet" href="/static/css/celestial.css"/>
+<link rel="stylesheet" href="/static/css/celestial.css?v=2.0.1"/>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
@@ -140,6 +152,13 @@
         <button class="topbar-action" id="palette-btn" onclick="openCommandPalette()" aria-label="Open command palette (Ctrl K)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           <span class="action-label">Search</span><kbd>Ctrl K</kbd>
+        </button>
+        <button class="topbar-action" id="theme-toggle" onclick="toggleTheme()" aria-label="Switch to dark theme" aria-pressed="false" title="Switch colour theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path class="theme-icon-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>
+            <path class="theme-icon-sun" d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.7-5.7 1.4-1.4M4.9 19.1l1.4-1.4m11.4 0 1.4 1.4M4.9 4.9l1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"/>
+          </svg>
+          <span class="action-label" id="theme-toggle-label">Dark theme</span>
         </button>
         <button class="topbar-action topbar-action-accent" id="assistant-btn" onclick="openAssistant()">
           <svg class="ai-icon small"><use href="#icon-ai-head"/></svg><span class="action-label">Ask AI</span>
@@ -291,16 +310,6 @@
     <div class="provider-card" style="border-left-color:var(--text3);cursor:default"><div class="provider-name" style="color:var(--text3)">GENERIC / AUTO-DETECT</div><div class="provider-desc">Auto-maps column names for any CSV with recognisable air quality fields.</div></div>
   </div>
 
-  <div id="upload-preview" style="display:none">
-    <div class="section-divider">Data Preview</div>
-    <div class="card">
-      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
-        <span class="badge" id="preview-rows-badge" style="background:#1d4ed820;color:var(--blue);border:1px solid #1d4ed840"></span>
-        <span class="badge" id="preview-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
-      </div>
-      <div class="data-table-wrap"><table class="data-table" id="preview-table"></table></div>
-    </div>
-  </div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════ -->
@@ -611,78 +620,85 @@
   <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Data Cleaning & Processing</h2>
   <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Select provider, configure options, then clean.</p>
 
-  <div class="grid2">
-    <div>
-      <div class="card">
-        <div class="card-title">Provider & Cleaning Options</div>
-        <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">Data Provider</label>
-          <select class="form-select" id="clean-provider">
-            <option value="purpleair">PurpleAir</option>
-            <option value="airnote">Airnote</option>
-            <option value="airgradient">AirGradient</option>
-            <option value="clarity">Clarity</option>
-            <option value="airqo">AirQo</option>
-            <option value="airqoon">AirQoon</option>
-            <option value="airbeam">AirBeam</option>
-            <option value="sensirion">Sensirion SEN5x/SPS30</option>
-            <option value="atmotube">Atmotube Pro</option>
-            <option value="pms5003">Plantower PMS5003/7003</option>
-            <option value="generic">Generic / Auto-Detect</option>
-          </select>
-        </div>
-        <div class="grid2" style="margin-bottom:14px">
-          <div class="form-group"><label class="form-label" for="clean-location">Location <span style="color:var(--text3)">(optional)</span></label><input class="form-input" id="clean-location" placeholder="Optional location" autocomplete="off"/></div>
-          <div class="form-group"><label class="form-label" for="clean-station-name">Station Name <span style="color:var(--text3)">(optional)</span></label><input class="form-input" id="clean-station-name" placeholder="Optional station name" autocomplete="off"/></div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
-          <div class="toggle-wrap" onclick="toggleOpt('apply_pm25_correction')">
-            <div class="toggle-track off" id="tog-apply_pm25_correction"><div class="toggle-thumb"></div></div>
-            <span class="toggle-label">Apply EPA-TTQ PM2.5 Correction</span>
-          </div>
-          <div class="toggle-wrap" onclick="toggleOpt('resample_hourly')">
-            <div class="toggle-track off" id="tog-resample_hourly"><div class="toggle-thumb"></div></div>
-            <span class="toggle-label">Resample to Hourly Averages</span>
-          </div>
-        </div>
-        <label style="display:flex;align-items:center;gap:9px;margin:0 0 16px;font-size:12px;color:var(--text2);cursor:pointer">
-          <input type="checkbox" id="clean-drop-empty-columns"/>
-          Drop columns that are 100% missing after cleaning
-        </label>
-        <div class="grid2" style="margin-bottom:16px">
-          <div class="form-group">
-            <label class="form-label">Start Date</label>
-            <input type="date" class="form-input" id="clean-start"/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">End Date</label>
-            <input type="date" class="form-input" id="clean-end"/>
-          </div>
-        </div>
-        <div class="card" id="airnote-mapping-card" style="display:none;background:var(--bg2);padding:14px;margin:0 0 16px">
-          <div class="card-title" style="margin-bottom:6px">Provider Column Mapping</div>
-          <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">
-            Map uploaded headers to canonical fields used by all provider cleaners. Leave unavailable fields as None.
-          </div>
-          <div id="airnote-mapping-grid" class="grid2" style="gap:10px"></div>
-        </div>
-        <button class="btn btn-primary btn-full btn-lg" onclick="cleanData()" id="clean-btn">
-          🧪 Clean Data
-        </button>
-      </div>
+  <div id="upload-preview" style="display:none">
+    <div class="card preview-card">
+      <button type="button" class="preview-header" onclick="toggleDataPreview()" aria-expanded="false" aria-controls="preview-table-wrap">
+        <span class="preview-title">Data Preview</span>
+        <span class="preview-arrow" aria-hidden="true">▸</span>
+        <span class="badge" id="preview-rows-badge" style="background:#1d4ed820;color:var(--blue);border:1px solid #1d4ed840"></span>
+        <span class="badge" id="preview-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+        <span class="preview-toggle-label" id="preview-toggle-label">Show full preview</span>
+      </button>
+      <div class="data-table-wrap" id="preview-table-wrap"><table class="data-table" id="preview-table"></table></div>
+    </div>
+  </div>
 
-      <div class="card" id="export-card" style="display:none">
-        <div class="card-title">Export Cleaned Data</div>
-        <div class="flex flex-gap">
-          <button class="btn btn-ghost btn-sm" onclick="exportData('csv')">⬇ CSV</button>
-          <button class="btn btn-ghost btn-sm" onclick="exportData('xlsx')">⬇ Excel</button>
-        </div>
+  <div class="card clean-provider-card">
+    <div class="card-title">Provider &amp; Cleaning Options</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Data Provider</label>
+      <select class="form-select" id="clean-provider">
+        <option value="purpleair">PurpleAir</option>
+        <option value="airnote">Airnote</option>
+        <option value="airgradient">AirGradient</option>
+        <option value="clarity">Clarity</option>
+        <option value="airqo">AirQo</option>
+        <option value="airqoon">AirQoon</option>
+        <option value="airbeam">AirBeam</option>
+        <option value="sensirion">Sensirion SEN5x/SPS30</option>
+        <option value="atmotube">Atmotube Pro</option>
+        <option value="pms5003">Plantower PMS5003/7003</option>
+        <option value="generic">Generic / Auto-Detect</option>
+      </select>
+    </div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group"><label class="form-label" for="clean-location">Location <span style="color:var(--text3)">(optional)</span></label><input class="form-input" id="clean-location" placeholder="Optional location" autocomplete="off"/></div>
+      <div class="form-group"><label class="form-label" for="clean-station-name">Station Name <span style="color:var(--text3)">(optional)</span></label><input class="form-input" id="clean-station-name" placeholder="Optional station name" autocomplete="off"/></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+      <div class="toggle-wrap" onclick="toggleOpt('apply_pm25_correction')">
+        <div class="toggle-track off" id="tog-apply_pm25_correction"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Apply EPA-TTQ PM2.5 Correction</span>
+      </div>
+      <div class="toggle-wrap" onclick="toggleOpt('resample_hourly')">
+        <div class="toggle-track off" id="tog-resample_hourly"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Resample to Hourly Averages</span>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:9px;margin:0 0 16px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="clean-drop-empty-columns"/>
+      Drop columns that are 100% missing after cleaning
+    </label>
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input type="date" class="form-input" id="clean-start"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date</label>
+        <input type="date" class="form-input" id="clean-end"/>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full btn-lg" onclick="cleanData()" id="clean-btn">
+      🧪 Clean Data
+    </button>
+  </div>
 
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card">
-        <div class="card-title">Column Manager</div>
+  <div class="card airnote-mapping-card" id="airnote-mapping-card" style="display:none">
+    <div class="card-title">Provider Column Mapping</div>
+    <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">
+      Map uploaded headers to canonical fields used by all provider cleaners. Leave unavailable fields as None.
+    </div>
+    <div id="airnote-mapping-grid" class="grid2" style="gap:10px"></div>
+  </div>
+
+  <div class="clean-tool-grid">
+    <details class="card clean-tool-card" id="clean-tool-column-manager">
+      <summary class="clean-tool-summary">
+        <span class="card-title">Column Manager</span>
+        <span class="clean-tool-arrow" aria-hidden="true">▸</span>
+      </summary>
+      <div class="clean-tool-body">
         <button class="btn btn-ghost btn-sm" onclick="dropFullyMissingColumns()" id="drop-empty-cols-btn" style="width:100%;margin-bottom:10px">
           Remove 100% missing columns now
         </button>
@@ -702,9 +718,14 @@
           <button class="btn btn-success btn-sm" onclick="addColumn()">➕ Add Column</button>
         </div>
       </div>
-      
-      <div class="card">
-        <div class="card-title">Temporal Aggregation</div>
+    </details>
+
+    <details class="card clean-tool-card" id="clean-tool-temporal-aggregation">
+      <summary class="clean-tool-summary">
+        <span class="card-title">Temporal Aggregation</span>
+        <span class="clean-tool-arrow" aria-hidden="true">▸</span>
+      </summary>
+      <div class="clean-tool-body">
         <div class="grid2" style="margin-bottom:12px">
           <div class="form-group">
             <label class="form-label">Frequency</label>
@@ -728,9 +749,14 @@
         </div>
         <button class="btn btn-ghost btn-sm btn-full" onclick="aggregateData()">⏱ Aggregate</button>
       </div>
+    </details>
 
-      <div class="card">
-        <div class="card-title">Fill Missing Values</div>
+    <details class="card clean-tool-card" id="clean-tool-fill-missing">
+      <summary class="clean-tool-summary">
+        <span class="card-title">Fill Missing Values</span>
+        <span class="clean-tool-arrow" aria-hidden="true">▸</span>
+      </summary>
+      <div class="clean-tool-body">
         <div class="grid2" style="margin-bottom:12px">
           <div class="form-group">
             <label class="form-label">Method</label>
@@ -749,9 +775,14 @@
         </div>
         <button class="btn btn-ghost btn-sm btn-full" onclick="interpolateData()">🩹 Fill Gaps</button>
       </div>
+    </details>
 
-      <div class="card">
-        <div class="card-title">Remove Outliers</div>
+    <details class="card clean-tool-card" id="clean-tool-remove-outliers">
+      <summary class="clean-tool-summary">
+        <span class="card-title">Remove Outliers</span>
+        <span class="clean-tool-arrow" aria-hidden="true">▸</span>
+      </summary>
+      <div class="clean-tool-body">
         <div class="grid2" style="margin-bottom:12px">
           <div class="form-group">
             <label class="form-label">Column</label>
@@ -772,6 +803,14 @@
         </div>
         <button class="btn btn-warning btn-sm btn-full" onclick="removeOutliers()">🚫 Remove Outliers</button>
       </div>
+    </details>
+  </div>
+
+  <div class="card" id="export-card" style="display:none">
+    <div class="card-title">Export Cleaned Data</div>
+    <div class="flex flex-gap">
+      <button class="btn btn-ghost btn-sm" onclick="exportData('csv')">⬇ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportData('xlsx')">⬇ Excel</button>
     </div>
   </div>
 
@@ -1765,10 +1804,9 @@
     <button type="button" class="quick-action" onclick="aqatAssistant.reportSummary()">Report summary</button>
   </div>
   <div class="assistant-messages" id="assistant-messages" role="log" aria-live="polite"></div>
-  <div class="assistant-suggestions" id="assistant-suggestions"></div>
   <div class="assistant-compose">
     <form id="assistant-form">
-      <textarea id="assistant-input" rows="3" placeholder="Ask about trends, anomalies, compliance, or explain a chart…" aria-label="Ask the assistant"></textarea>
+      <textarea id="assistant-input" rows="2" placeholder="Ask about trends, anomalies, compliance, or explain a chart…" aria-label="Ask the assistant"></textarea>
       <div class="assistant-compose-actions">
         <label class="chip-btn" for="assistant-image" title="Attach a chart screenshot for visual reasoning">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
@@ -1818,6 +1856,6 @@
 
 <script src="/static/js/app.js"></script>
 <script src="/static/js/enhancements.js"></script>
-<script type="module" src="/static/js/assistant.js"></script>
+<script type="module" src="/static/js/assistant.js?v=2.0.1"></script>
 </body>
 </html>

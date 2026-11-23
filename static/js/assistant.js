@@ -59,7 +59,6 @@ const state = {
   dataFile: null,
   status: null,
   historyLoaded: null,
-  suggestionsKey: null,
   open: false,
   pinned: false,
   lastFocus: null,
@@ -438,20 +437,6 @@ function showTyping(label) {
   };
 }
 
-function renderSuggestions(list) {
-  const container = $("assistant-suggestions");
-  if (!container) return;
-  container.replaceChildren();
-  (list || []).slice(0, 6).forEach((text) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "suggestion-chip";
-    chip.textContent = text;
-    chip.addEventListener("click", () => ask(text));
-    container.appendChild(chip);
-  });
-}
-
 function answerLabel(payload) {
   if (payload.intent_label) return payload.intent_label;
   if (payload.used_cloud === false) return "Local analysis";
@@ -533,7 +518,6 @@ function persistAssistant(payload) {
 function appendAnswerPayload(payload, options = {}) {
   const message = makeBotMessage(payload, options);
   appendMessage(message);
-  if (payload.suggestions && payload.suggestions.length) renderSuggestions(payload.suggestions);
   if (options.persist !== false) persistAssistant(payload);
   if (payload.shape && window.STATE) window.STATE.shape = payload.shape;
   return message;
@@ -764,7 +748,7 @@ async function captureChartImage() {
   }
 }
 
-/* ── Status and suggestions ──────────────────────────────────────────────── */
+/* ── Status and quota ────────────────────────────────────────────────────── */
 
 function applyStatus(status) {
   state.status = status || null;
@@ -840,30 +824,10 @@ async function refreshStatus() {
   applyStatus(state.status);
 }
 
-async function loadSuggestions(force) {
-  const sid = sessionId();
-  const key = sid || "none";
-  if (!force && state.suggestionsKey === key) return;
-  state.suggestionsKey = key;
-  try {
-    const url = `/api/assistant/suggestions${sid ? `?session_id=${encodeURIComponent(sid)}` : ""}`;
-    const data = await assistantRequest(url);
-    renderSuggestions(data.suggestions || []);
-  } catch (_) {
-    renderSuggestions([
-      "What can you do?",
-      "Summarise this dataset",
-      "Explain this chart",
-      "What is PM2.5?",
-    ]);
-  }
-}
-
 function resetForSession() {
   endAISession("session-reset", state.quotaSessionId || sessionId());
   state.quotaSessionId = sessionId();
   state.historyLoaded = null;
-  state.suggestionsKey = null;
   state.context = null;
   state.quota = null;
   showLimitNotice("");
@@ -872,7 +836,6 @@ function resetForSession() {
   if (container) container.replaceChildren();
   showEmptyState();
   loadHistory();
-  loadSuggestions(true);
   if (typeof window.updateAssistantContext === "function") window.updateAssistantContext();
 }
 
@@ -1262,7 +1225,6 @@ function setAssistantOpen(open, options = {}) {
   if (next) {
     cancelAssistantHide();
     refreshStatus();
-    loadSuggestions();
     loadHistory();
     if (options.focus !== false) {
       window.setTimeout(() => {
@@ -1433,7 +1395,6 @@ function boot() {
 
   showEmptyState();
   refreshStatus();
-  loadSuggestions();
   if (sessionId()) loadHistory();
 
   window.aqatAssistant = {
