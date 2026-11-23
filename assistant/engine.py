@@ -39,6 +39,10 @@ from assistant.profiling import (
     unit_for,
 )
 
+# Keep the pre-suggested prompt strip compact so the assistant answer area has
+# more room and the chips fit inside the panel on smaller windows.
+MAX_SUGGESTIONS = 4
+
 # ── glossary ─────────────────────────────────────────────────────────────────
 GLOSSARY: dict[str, dict[str, str]] = {
     "pm2.5": {
@@ -586,7 +590,7 @@ def suggestions_for(df: Optional[pd.DataFrame], session: Optional[dict] = None) 
             suggestions.insert(0, "Explain the last analysis")
         if session and session.get("last_plot"):
             suggestions.insert(0, "Explain the current plot")
-    return suggestions[:8]
+    return suggestions[:MAX_SUGGESTIONS]
 
 
 def _detect_intent(question: str, df: pd.DataFrame) -> str:
@@ -731,7 +735,7 @@ def answer_question(question: str, df: pd.DataFrame, *, session: Optional[dict] 
                 "find trends and anomalies, check guideline exceedances, compare stations, and explain charts or analysis results."
                 + context
             )
-            bullets = suggestions_for(df, session)[:5]
+            bullets = suggestions_for(df, session)[:MAX_SUGGESTIONS]
     except Exception as exc:  # noqa: BLE001 - assistant must never break the UI
         answer = (
             "I could not complete that answer because of an unexpected data condition. "
@@ -747,7 +751,7 @@ def answer_question(question: str, df: pd.DataFrame, *, session: Optional[dict] 
         "confidence": 0.95 if intent not in {"unsupported"} else 0.4,
         "bullets": bullets[:max_bullets],
         "columns": columns,
-        "suggestions": suggestions_for(df, session)[:6],
+        "suggestions": suggestions_for(df, session)[:MAX_SUGGESTIONS],
         "references": {
             "profile_shape": profile.get("shape"),
             "primary": (profile.get("primary") or {}).get("column"),

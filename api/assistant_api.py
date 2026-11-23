@@ -227,7 +227,7 @@ def suggestions():
         })
     frame = STORE.active_frame(sid)
     return jsonify({
-        "suggestions": suggestions_for(frame, session),
+        "suggestions": suggestions_for(frame, session)[:4],
         "has_session": True,
         "cleaned": session.get("cleaned") is not None,
         "last_analysis": (session.get("last_analysis") or {}).get("type"),
@@ -262,7 +262,7 @@ def context():
         "context_text": render_context(context_pack, MAX_CONTEXT_CHARS),
         "profile": profile,
         "insights": dataset_insights(frame, profile=profile),
-        "suggestions": suggestions_for(frame, session)[:6],
+        "suggestions": suggestions_for(frame, session)[:4],
         "limits": dict(LIMITS),
     }))
 

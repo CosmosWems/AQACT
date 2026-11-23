@@ -1,0 +1,2963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AQACT — Air Quality Analysis &amp; Compliance Assessment Tool</title>
+
+<!-- Plotly: local first, CDN fallbacks -->
+<script>
+(function(){
+  var s=document.createElement('script'); s.src='/static/plotly-2.35.2.min.js';
+  s.onerror=function(){
+    var mirrors=['https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js',
+      'https://unpkg.com/plotly.js-dist-min@2.35.2/plotly.min.js'];
+    var idx=0;
+    function tryNext(){
+      if(idx>=mirrors.length){document.getElementById('plotly-error-banner').style.display='flex';return;}
+      var fb=document.createElement('script'); fb.src=mirrors[idx++]; fb.onerror=tryNext;
+      document.head.appendChild(fb);
+    } tryNext();
+  };
+  document.head.appendChild(s);
+})();
+</script>
+<link id="leaflet-css" rel="stylesheet" href="/static/leaflet-1.9.4.css"
+  onerror="this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'"/>
+<script>
+(function(){
+  var s=document.createElement('script'); s.src='/static/leaflet-1.9.4.js';
+  s.onerror=function(){var fb=document.createElement('script');
+    fb.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+    document.head.appendChild(fb);};
+  document.head.appendChild(s);
+})();
+</script>
+<script>
+(function(){
+  var s=document.createElement('script'); s.src='/static/leaflet-heat.js';
+  s.onerror=function(){var fb=document.createElement('script');
+    fb.src='https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js';
+    document.head.appendChild(fb);};
+  document.head.appendChild(s);
+})();
+</script>
+
+<style>
+/* ══════════════════════════════════════════════════════════
+  AQACT  —  CSS Variables (Dark & Light themes)
+   ══════════════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Dark theme (default) ─── */
+:root{
+  --bg:#0f1117;--bg2:#13171f;--bg3:#1a1d27;--bg4:#1e2a3a;
+  --border:#2d3748;--border2:#374151;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--text4:#4b5563;
+  --blue:#3b82f6;--purple:#8b5cf6;--green:#10b981;--teal:#06b6d4;
+  --yellow:#f59e0b;--red:#ef4444;--pink:#ec4899;--orange:#f97316;
+  --radius:10px;--shadow:0 4px 20px rgba(0,0,0,0.4);
+  --header-bg:linear-gradient(135deg,#1a2332,#0d1b2a);
+  --table-alt:#131722;
+  --toast-success-bg:#0d2a1a;--toast-error-bg:#2a0d0d;--toast-warn-bg:#2a1d0d;
+}
+
+/* ── Light theme ─── */
+[data-theme="light"]{
+  --bg:#f8fafc;--bg2:#f1f5f9;--bg3:#ffffff;--bg4:#e2e8f0;
+  --border:#cbd5e1;--border2:#94a3b8;
+  --text:#1e293b;--text2:#475569;--text3:#64748b;--text4:#94a3b8;
+  --blue:#2563eb;--purple:#7c3aed;--green:#059669;--teal:#0891b2;
+  --yellow:#d97706;--red:#dc2626;--pink:#db2777;--orange:#ea580c;
+  --shadow:0 4px 20px rgba(0,0,0,0.08);
+  --header-bg:linear-gradient(135deg,#1e3a5f,#1e293b);
+  --table-alt:#f8fafc;
+  --toast-success-bg:#ecfdf5;--toast-error-bg:#fef2f2;--toast-warn-bg:#fffbeb;
+}
+
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;transition:background .25s,color .25s}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+input,select,textarea{outline:none;font-family:inherit}
+button{cursor:pointer;font-family:inherit}
+
+/* ── Layout ─────────────────────────────────────────────── */
+#header{background:var(--header-bg);border-bottom:1px solid var(--border);
+  height:58px;display:flex;align-items:center;padding:0 20px;gap:14px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.3);position:sticky;top:0;z-index:900}
+#logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+#app-name{font-weight:700;font-size:16px;letter-spacing:.4px;color:#fff}
+#app-sub{font-size:11px;color:#94a3b8;margin-top:-2px}
+#session-badge{margin-left:auto;font-size:11px;color:var(--text3);background:var(--bg3);
+  padding:4px 12px;border-radius:20px;border:1px solid var(--border);white-space:nowrap;display:none}
+#header-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+
+/* ── Theme toggle button ─────────────────────────────────── */
+#theme-btn{background:var(--bg4);border:1px solid var(--border);color:var(--text2);
+  border-radius:20px;padding:5px 14px;font-size:12px;display:flex;align-items:center;gap:6px;
+  transition:all .2s;flex-shrink:0}
+#theme-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ── Tabs ────────────────────────────────────────────────── */
+#tabs{display:flex;gap:2px;padding:8px 16px;background:var(--bg2);
+  border-bottom:1px solid var(--bg4);overflow-x:auto;flex-shrink:0}
+.tab-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;
+  border:none;font-size:12px;font-weight:500;white-space:nowrap;transition:all .15s;
+  background:transparent;color:var(--text3)}
+.tab-btn.active{background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-weight:600}
+.tab-btn:hover:not(.active):not(:disabled){color:var(--text2);background:var(--bg4)}
+.tab-btn:disabled{color:var(--border2);cursor:not-allowed}
+
+#main{flex:1;padding:20px;overflow-y:auto;max-height:calc(100vh - 110px);overflow-x:hidden}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px}
+.card-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.8px;margin-bottom:14px}
+.section-divider{display:flex;align-items:center;gap:10px;margin:20px 0 14px;
+  font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.8px}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--bg4)}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:8px;
+  border:none;font-size:13px;font-weight:600;transition:all .15s;white-space:nowrap}
+.btn-primary{background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff}
+.btn-success{background:linear-gradient(135deg,#059669,#047857);color:#fff}
+.btn-danger{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff}
+.btn-warning{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+.btn-teal{background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-lg{padding:10px 24px;font-size:14px}
+.btn-full{width:100%;justify-content:center}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── Forms ───────────────────────────────────────────────── */
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:12px;color:var(--text3);font-weight:500}
+.form-input,.form-select{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;color:var(--text);font-size:13px;width:100%;transition:border-color .15s}
+.form-input:focus,.form-select:focus{border-color:var(--blue)}
+.form-select option{background:var(--bg2)}
+
+/* ── Toggles ─────────────────────────────────────────────── */
+.toggle-wrap{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.toggle-track{width:38px;height:20px;border-radius:10px;background:var(--border2);position:relative;transition:background .2s;flex-shrink:0}
+.toggle-track.on{background:var(--blue)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:8px;background:#fff;transition:left .2s}
+.toggle-track.on .toggle-thumb{left:20px}
+.toggle-label{font-size:13px;color:var(--text2)}
+
+/* ── Grids ───────────────────────────────────────────────── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.flex{display:flex}.flex-gap{gap:12px}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}
+.ml-auto{margin-left:auto}
+
+/* ── Badges ──────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}
+
+/* ── Stat Cards ──────────────────────────────────────────── */
+.stat-card{background:var(--bg);border:1px solid var(--bg4);border-radius:10px;padding:12px 16px;text-align:center}
+.stat-label{font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:22px;font-weight:700;font-family:monospace;color:var(--blue)}
+.stat-unit{font-size:10px;color:var(--text4);margin-top:2px}
+
+/* ── Tables ──────────────────────────────────────────────── */
+.data-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--bg4)}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{padding:8px 12px;text-align:left;color:var(--text3);font-weight:600;
+  background:var(--bg2);border-bottom:1px solid var(--bg4);white-space:nowrap}
+.data-table td{padding:6px 12px;color:var(--text2);white-space:nowrap;max-width:200px;
+  overflow:hidden;text-overflow:ellipsis}
+.data-table tr:nth-child(even) td{background:var(--table-alt)}
+.table-footer{padding:7px 12px;color:var(--text4);font-size:11px;text-align:center;
+  background:var(--bg2);border-top:1px solid var(--bg4)}
+
+/* ── Drop zone ───────────────────────────────────────────── */
+#drop-zone,#batch-drop-zone,#ms-drop-zone{border:2px dashed var(--border);border-radius:16px;
+  padding:44px 24px;text-align:center;cursor:pointer;background:var(--bg2);transition:all .2s;margin-bottom:18px}
+#drop-zone.drag-over,#batch-drop-zone.drag-over,#ms-drop-zone.drag-over{border-color:var(--blue);background:#1d4ed810}
+.dz-icon{font-size:44px;margin-bottom:12px;opacity:.5}
+.dz-text{font-size:15px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.dz-sub{font-size:12px;color:var(--text4)}
+
+/* ── Progress ────────────────────────────────────────────── */
+.progress-bar{background:var(--bg4);border-radius:20px;height:6px;overflow:hidden;margin:10px 0}
+.progress-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--blue),var(--purple));transition:width .3s}
+
+/* ── File list ───────────────────────────────────────────── */
+.file-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bg4)}
+.file-item:last-child{border-bottom:none}
+.file-icon{font-size:18px;flex-shrink:0}
+.file-name{flex:1;font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-size{font-size:11px;color:var(--text4);flex-shrink:0}
+.file-remove{background:none;border:none;color:var(--red);font-size:16px;padding:2px 6px;opacity:.7}
+.file-remove:hover{opacity:1}
+
+/* ── Missing bars ────────────────────────────────────────── */
+.missing-card{background:var(--bg);border:1px solid var(--bg4);border-radius:10px;padding:12px}
+.missing-pct{font-size:18px;font-weight:700;font-family:monospace}
+.missing-bar{height:4px;border-radius:4px;margin-top:6px}
+
+/* ── AQI ─────────────────────────────────────────────────── */
+.aqi-good{color:#00e400}.aqi-moderate{color:#e6e600}.aqi-ufs{color:#ff7e00}
+.aqi-unhealthy{color:#ff0000}.aqi-very{color:#8f3f97}.aqi-hazardous{color:#7e0023}
+
+/* ── Loader ──────────────────────────────────────────────── */
+.loader{display:flex;align-items:center;gap:10px;color:var(--text3);padding:20px}
+.spinner{width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--blue);
+  border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toasts ──────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;max-width:340px;
+  box-shadow:var(--shadow);animation:fadeInUp .3s ease;border-left:4px solid}
+.toast-success{background:var(--toast-success-bg);color:#34d399;border-color:#10b981}
+.toast-error{background:var(--toast-error-bg);color:#f87171;border-color:#ef4444}
+.toast-warn{background:var(--toast-warn-bg);color:#fbbf24;border-color:#f59e0b}
+[data-theme="light"] .toast-success{color:#065f46}
+[data-theme="light"] .toast-error{color:#991b1b}
+[data-theme="light"] .toast-warn{color:#92400e}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Plot area ───────────────────────────────────────────── */
+.plot-empty{background:var(--bg2);border:1px dashed var(--border);border-radius:16px;
+  min-height:400px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;color:var(--border2);gap:12px}
+.plot-empty-icon{font-size:52px;opacity:.3}
+
+/* ── Map ─────────────────────────────────────────────────── */
+#map{width:100%;height:70vh;min-height:480px;border-radius:14px;border:1px solid var(--border);overflow:hidden}
+#aqi-legend{position:absolute;bottom:20px;right:20px;z-index:999;
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 16px;opacity:.93}
+
+/* ── Station chips (multi-station) ──────────────────────── */
+.station-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:12px;font-weight:600;margin:4px;cursor:pointer;
+  border:2px solid transparent;transition:all .15s}
+.station-chip.active{border-color:currentColor}
+.station-chip-remove{background:none;border:none;font-size:12px;cursor:pointer;opacity:.6;padding:0 0 0 4px}
+.station-chip-remove:hover{opacity:1}
+
+/* ── Provider cards (upload info) ────────────────────────── */
+.provider-card{border-radius:10px;padding:14px;margin-bottom:0;border-left-width:3px;
+  background:var(--bg3);border:1px solid var(--border);
+  text-decoration:none;display:block;transition:transform .15s,box-shadow .15s,background .15s;cursor:pointer}
+.provider-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.18);
+  background:var(--bg4)}
+.provider-name{font-weight:700;font-size:13px;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.provider-name::after{content:"\2197";font-size:10px;opacity:.55}
+.provider-desc{color:var(--text3);font-size:12px}
+
+/* ── Perf rating ─────────────────────────────────────────── */
+.perf-criterion{background:var(--bg4);border-radius:8px;padding:10px;text-align:center}
+.perf-criterion.met{background:#10b98122;border:1px solid #10b98144}
+.perf-criterion.fail{background:#ef444422;border:1px solid #ef444444}
+.criterion-icon{font-size:18px;margin-bottom:4px}
+.criterion-label{font-size:10px;color:var(--text3)}
+
+/* ── Batch badge ─────────────────────────────────────────── */
+.batch-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;
+  border-radius:20px;font-size:11px;font-weight:600;background:#0891b222;
+  color:var(--teal);border:1px solid #0891b244}
+
+/* ── Comparative table ───────────────────────────────────── */
+.comp-rank{font-size:18px;font-weight:800}
+.comp-rank-1{color:var(--yellow)}
+.comp-rank-2{color:var(--text2)}
+.comp-rank-3{color:var(--orange)}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media(max-width:768px){
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  #main{padding:12px}
+}
+</style>
+</head>
+<body>
+
+<div id="plotly-error-banner" style="display:none;background:#7f1d1d;color:#fca5a5;
+  padding:12px 20px;font-size:13px;align-items:center;gap:12px;border-bottom:1px solid #991b1b">
+  ⚠️ <strong>Plotly charts could not load.</strong> Ensure internet connectivity on first run.
+</div>
+
+<!-- ── Header ──────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">🌫</div>
+  <div>
+    <div id="app-name">AQACT</div>
+    <div id="app-sub">Air Quality Analysis &amp; Compliance Assessment Tool</div>
+  </div>
+  <div id="header-right">
+    <div id="session-badge">
+      Session: <span id="session-id-display" style="color:var(--blue);font-family:monospace"></span>
+      <span id="cleaned-dot" style="color:var(--green);margin-left:8px;display:none">● Cleaned</span>
+    </div>
+    <button id="theme-btn" onclick="toggleTheme()">🌙 Dark</button>
+  </div>
+</div>
+
+<!-- ── Tabs ─────────────────────────────────────────────────────── -->
+<div id="tabs">
+  <button class="tab-btn active"  onclick="switchTab('upload')">📤 Upload</button>
+  <button class="tab-btn" onclick="switchTab('batch')"     id="tab-batch">📦 Batch Stack</button>
+  <button class="tab-btn" onclick="switchTab('multistation')" id="tab-multistation">🏙 Multi-Station</button>
+  <button class="tab-btn" onclick="switchTab('clean')"     id="tab-clean"     disabled>🧹 Clean</button>
+  <button class="tab-btn" onclick="switchTab('explore')"   id="tab-explore"   disabled>🔍 Explore</button>
+  <button class="tab-btn" onclick="switchTab('plots')"     id="tab-plots"     disabled>📊 Plots</button>
+  <button class="tab-btn" onclick="switchTab('map')"       id="tab-map"       disabled>🗺 Map</button>
+  <button class="tab-btn" onclick="switchTab('extreme')"   id="tab-extreme"   disabled>⚡ Extreme</button>
+  <button class="tab-btn" onclick="switchTab('compliance')" id="tab-compliance" disabled>⚖ Compliance</button>
+  <button class="tab-btn" onclick="switchTab('machinelearning')" id="tab-machinelearning" disabled>🤖 Machine Learning</button>
+  <button class="tab-btn" onclick="switchTab('modeleval')" id="tab-modeleval" disabled>📈 Model Eval</button>
+  <button class="tab-btn" onclick="switchTab('about')" id="tab-about">ⓘ About</button>
+</div>
+
+<div id="main">
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: UPLOAD (single/multi file)                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-upload" class="tab-panel active">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Upload Air Quality Data</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">
+    Drop one or more CSV / Excel files. Multiple files of the same structure are merged automatically.
+    For stacking daily files, use the <strong>Batch Stack</strong> tab.
+  </p>
+
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()"
+       ondrop="handleDrop(event,'upload')" ondragover="handleDragOver(event,'drop-zone')" ondragleave="handleDragLeave('drop-zone')">
+    <input type="file" id="file-input" multiple accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileSelect(event,'upload')"/>
+    <div class="dz-icon">📂</div>
+    <div class="dz-text">Drag & drop files here, or click to browse</div>
+    <div class="dz-sub">Supports CSV, XLSX, XLS, TXT</div>
+  </div>
+
+  <div id="file-list" style="display:none" class="card">
+    <div class="card-title">Queued Files</div>
+    <div id="file-items"></div>
+  </div>
+
+  <div id="upload-progress" style="display:none">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div style="color:var(--text3);font-size:12px" id="progress-text">Uploading…</div>
+  </div>
+
+  <button class="btn btn-primary btn-lg" onclick="uploadFiles()" id="upload-btn" style="margin-bottom:28px">
+    📤 Upload & Preview
+  </button>
+
+  <!-- Provider info -->
+  <div class="section-divider">Supported Data Providers</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px">
+    <a class="provider-card" href="https://www.purpleair.com/" target="_blank" rel="noopener" style="border-left-color:var(--purple)"><div class="provider-name" style="color:var(--purple)">PURPLEAIR</div><div class="provider-desc">PA-I/PA-II. EPA-TTQ PM2.5 correction. SD card daily files supported via Batch Stack.</div></a>
+    <a class="provider-card" href="https://blues.com/products/airnote/" target="_blank" rel="noopener" style="border-left-color:var(--blue)"><div class="provider-name" style="color:var(--blue)">AIRNOTE</div><div class="provider-desc">Blues Wireless environmental sensors with full met suite.</div></a>
+    <a class="provider-card" href="https://www.airgradient.com/" target="_blank" rel="noopener" style="border-left-color:var(--teal)"><div class="provider-name" style="color:var(--teal)">AIRGRADIENT</div><div class="provider-desc">Open-source monitors. CO₂, PM, NO₂, VOC.</div></a>
+    <a class="provider-card" href="https://www.clarity.io/" target="_blank" rel="noopener" style="border-left-color:var(--green)"><div class="provider-name" style="color:var(--green)">CLARITY</div><div class="provider-desc">Clarity Node laser particle counters.</div></a>
+    <a class="provider-card" href="https://www.airqo.net/" target="_blank" rel="noopener" style="border-left-color:var(--yellow)"><div class="provider-name" style="color:var(--yellow)">AIRQO</div><div class="provider-desc">AirQo low-cost sensor network across Africa.</div></a>
+    <a class="provider-card" href="https://airqoon.com/" target="_blank" rel="noopener" style="border-left-color:var(--orange)"><div class="provider-name" style="color:var(--orange)">AIRQOON</div><div class="provider-desc">AirQoon balloon-borne sensor with full met data.</div></a>
+    <a class="provider-card" href="https://www.habitatmap.org/airbeam" target="_blank" rel="noopener" style="border-left-color:var(--pink)"><div class="provider-name" style="color:var(--pink)">AIRBEAM</div><div class="provider-desc">GPS-tagged mobile monitor. Daily session files supported in Batch Stack.</div></a>
+    <a class="provider-card" href="https://sensirion.com/products/catalog/?category=Air+Quality" target="_blank" rel="noopener" style="border-left-color:#06b6d4"><div class="provider-name" style="color:#06b6d4">SENSIRION SEN5x/SPS30</div><div class="provider-desc">PM1–PM10 + NC fractions + VOC/NOx index + CO₂.</div></a>
+    <a class="provider-card" href="https://atmotube.com/" target="_blank" rel="noopener" style="border-left-color:#8b5cf6"><div class="provider-name" style="color:#8b5cf6">ATMOTUBE PRO</div><div class="provider-desc">Wearable/portable. PM1/2.5/10, VOC, GPS, met.</div></a>
+    <a class="provider-card" href="http://www.plantower.com/en/" target="_blank" rel="noopener" style="border-left-color:#10b981"><div class="provider-name" style="color:#10b981">PLANTOWER PMS5003/7003</div><div class="provider-desc">PM std/atm + particle counts per 0.1L. Logger CSV.</div></a>
+    <div class="provider-card" style="border-left-color:var(--text3);cursor:default"><div class="provider-name" style="color:var(--text3)">GENERIC / AUTO-DETECT</div><div class="provider-desc">Auto-maps column names for any CSV with recognisable air quality fields.</div></div>
+  </div>
+
+  <div id="upload-preview" style="display:none">
+    <div class="section-divider">Data Preview</div>
+    <div class="card">
+      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
+        <span class="badge" id="preview-rows-badge" style="background:#1d4ed820;color:var(--blue);border:1px solid #1d4ed840"></span>
+        <span class="badge" id="preview-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+      </div>
+      <div class="data-table-wrap"><table class="data-table" id="preview-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: BATCH STACK                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-batch" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Batch File Stacking</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">
+    Stack multiple daily files (e.g. PurpleAir SD card files, AirBeam session CSVs) into one continuous time-series.
+    Files are sorted chronologically before concatenation.
+  </p>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Batch Configuration</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Data Provider</label>
+          <select class="form-select" id="batch-provider">
+            <option value="purpleair">PurpleAir (SD card daily files)</option>
+            <option value="airbeam">AirBeam (session files)</option>
+            <option value="airgradient">AirGradient</option>
+            <option value="airnote">Airnote</option>
+            <option value="clarity">Clarity</option>
+            <option value="airqo">AirQo</option>
+            <option value="airqoon">AirQoon</option>
+            <option value="sensirion">Sensirion SEN5x/SPS30</option>
+            <option value="atmotube">Atmotube Pro</option>
+            <option value="pms5003">Plantower PMS5003/7003</option>
+            <option value="generic">Generic / Auto-Detect</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Station / Deployment Name</label>
+          <input type="text" class="form-input" id="batch-station-name" placeholder="e.g. Site A — Urban Rooftop"/>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">How It Works</div>
+        <div style="color:var(--text3);font-size:12px;line-height:1.7">
+          <div style="margin-bottom:6px">📁 Select all daily CSV/Excel files at once using the file picker.</div>
+          <div style="margin-bottom:6px">🔢 Files are automatically sorted by filename (which typically encodes the date).</div>
+          <div style="margin-bottom:6px">📎 A <code>_source_file</code> column is added to track which file each row came from.</div>
+          <div>⚙️ After stacking, the data is passed to the standard <strong>Clean</strong> tab as a single session.</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div id="batch-drop-zone" onclick="document.getElementById('batch-file-input').click()"
+           ondrop="handleDrop(event,'batch')" ondragover="handleDragOver(event,'batch-drop-zone')" ondragleave="handleDragLeave('batch-drop-zone')">
+        <input type="file" id="batch-file-input" multiple accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileSelect(event,'batch')"/>
+        <div class="dz-icon">📅</div>
+        <div class="dz-text">Drop daily files here</div>
+        <div class="dz-sub">Select all daily CSV files at once</div>
+      </div>
+
+      <div id="batch-file-list" style="display:none" class="card">
+        <div class="card-title" id="batch-file-count">Daily Files</div>
+        <div id="batch-file-items" style="max-height:220px;overflow-y:auto"></div>
+      </div>
+
+      <div id="batch-progress" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="batch-progress-fill" style="width:0%"></div></div>
+        <div style="color:var(--text3);font-size:12px" id="batch-progress-text">Stacking files…</div>
+      </div>
+
+      <button class="btn btn-teal btn-lg btn-full" onclick="batchUpload()" id="batch-btn">
+        📦 Stack & Load Files
+      </button>
+    </div>
+  </div>
+
+  <div id="batch-result" style="display:none">
+    <div class="section-divider">Stacked Dataset Preview</div>
+    <div class="card">
+      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
+        <span class="badge batch-badge" id="batch-stacked-badge"></span>
+        <span class="badge" id="batch-rows-badge" style="background:#1d4ed820;color:var(--blue);border:1px solid #1d4ed840"></span>
+        <span class="badge" id="batch-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+      </div>
+      <div id="batch-warnings" style="display:none;margin-bottom:12px"></div>
+      <div style="background:var(--bg2);padding:14px;margin-bottom:14px;border-radius:8px">
+        <div class="card-title">Map Source Columns</div>
+        <div style="color:var(--text3);font-size:12px;margin-bottom:10px">
+          Optional: map uploaded headers to standard fields before cleaning.
+        </div>
+        <div id="batch-mapping-grid" class="grid2" style="gap:10px"></div>
+      </div>
+      <div class="data-table-wrap"><table class="data-table" id="batch-preview-table"></table></div>
+      <div style="margin-top:14px;color:var(--text3);font-size:12px">
+        ✅ Session loaded. Switch to <strong>Clean</strong> tab to process this stacked dataset.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MULTI-STATION                                      -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-multistation" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Multi-Station Comparative Analysis</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">
+    Upload datasets from different locations or stations. Assign a name to each file (or group of files),
+    then run comparative statistics across all stations simultaneously.
+  </p>
+
+  <!-- Step 1: Upload -->
+  <div class="card">
+    <div class="card-title">Step 1 — Upload Station Files</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Data Provider (same for all stations)</label>
+        <select class="form-select" id="ms-provider">
+          <option value="purpleair">PurpleAir</option>
+          <option value="airbeam">AirBeam</option>
+          <option value="airgradient">AirGradient</option>
+          <option value="airnote">Airnote</option>
+          <option value="clarity">Clarity</option>
+          <option value="airqo">AirQo</option>
+          <option value="airqoon">AirQoon</option>
+          <option value="sensirion">Sensirion</option>
+          <option value="atmotube">Atmotube</option>
+          <option value="pms5003">PMS5003</option>
+          <option value="generic">Generic / Auto-Detect</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end">
+        <div style="font-size:12px;color:var(--text3)">💡 Each file you add will become one station. You can rename stations below.</div>
+      </div>
+    </div>
+
+    <div id="ms-drop-zone" onclick="document.getElementById('ms-file-input').click()"
+         ondrop="handleDrop(event,'ms')" ondragover="handleDragOver(event,'ms-drop-zone')" ondragleave="handleDragLeave('ms-drop-zone')">
+      <input type="file" id="ms-file-input" multiple accept=".csv,.xlsx,.xls,.txt" style="display:none" onchange="handleFileSelect(event,'ms')"/>
+      <div class="dz-icon">🏙</div>
+      <div class="dz-text">Drop files from different stations / locations</div>
+      <div class="dz-sub">Each file = one station. Multiple files with the same name label will be stacked.</div>
+    </div>
+
+    <!-- Station label editor -->
+    <div id="ms-station-editor" style="display:none">
+      <div class="card-title" style="margin-top:8px">Station Labels</div>
+      <div id="ms-station-labels"></div>
+      <div id="ms-upload-progress" style="display:none;margin-top:12px">
+        <div class="progress-bar"><div class="progress-fill" id="ms-progress-fill" style="width:0%"></div></div>
+        <div style="color:var(--text3);font-size:12px" id="ms-progress-text">Uploading…</div>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="msUpload()" id="ms-upload-btn" style="margin-top:14px">
+        🏙 Upload All Stations
+      </button>
+    </div>
+  </div>
+
+  <div class="card" id="ms-mapping-card" style="display:none">
+    <div class="card-title">Step 2 — Map Source Columns</div>
+    <div style="color:var(--text3);font-size:12px;margin-bottom:10px">
+      Apply shared header mappings across stations. Unmatched columns, including categories such as indoor/outdoor, remain available for analysis.
+    </div>
+    <div id="ms-mapping-grid" class="grid2" style="gap:10px"></div>
+  </div>
+
+  <!-- Step 3: Clean -->
+  <div class="card" id="ms-clean-card" style="display:none">
+    <div class="card-title">Step 3 — Clean All Stations</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Start Date (optional)</label>
+        <input type="date" class="form-input" id="ms-start"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End Date (optional)</label>
+        <input type="date" class="form-input" id="ms-end"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div class="toggle-wrap" onclick="toggleMSOpt('apply_pm25_correction')">
+        <div class="toggle-track on" id="ms-tog-pm25"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Apply PM2.5 Correction</span>
+      </div>
+      <div class="toggle-wrap" onclick="toggleMSOpt('resample_hourly')">
+        <div class="toggle-track on" id="ms-tog-hourly"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Resample to Hourly</span>
+      </div>
+    </div>
+    <button class="btn btn-success btn-lg" onclick="msClean()" id="ms-clean-btn">
+      🧹 Clean All Stations
+    </button>
+    <div id="ms-clean-loader" class="loader" style="display:none"><div class="spinner"></div>Cleaning stations…</div>
+    <div id="ms-clean-result" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- Step 4: Comparative Analysis -->
+  <div class="card" id="ms-analysis-card" style="display:none">
+    <div class="card-title">Step 4 — Run Comparative Analysis</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:14px">
+      <div class="form-group">
+        <label class="form-label">Pollutant / Column</label>
+        <select class="form-select" id="ms-col">
+          <option value="pm2.5" selected>PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="NO2">NO2</option>
+          <option value="O3">O3</option>
+          <option value="CO">CO</option>
+          <option value="SO2">SO2</option>
+          <option value="NOx">NOx</option>
+          <option value="CO2">CO2</option>
+          <option value="VOC">VOC</option>
+          <option value="temperature">Temperature</option>
+          <option value="RH">RH</option>
+          <option value="pm1.0">PM1.0</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time Resolution</label>
+        <select class="form-select" id="ms-freq">
+          <option value="h">Hourly</option>
+          <option value="D" selected>Daily</option>
+          <option value="W">Weekly</option>
+          <option value="ME">Monthly</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">WHO 24h Standard (μg/m³)</label>
+        <input type="number" class="form-input" id="ms-who24" placeholder="e.g. 15" step="0.1"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">EPA 24h Standard (μg/m³)</label>
+        <input type="number" class="form-input" id="ms-epa24" placeholder="e.g. 35" step="0.1"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" onclick="runComparative()" id="comp-run-btn">
+        📊 Run Comparative Analysis
+      </button>
+      <button class="btn btn-success btn-sm" onclick="msLoadMerged()" id="ms-load-plot-btn" style="display:none">
+        Load Merged Data into Plots
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="msExport('csv')">⬇ Export Merged CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="msExport('xlsx')">⬇ Export Multi-Sheet Excel</button>
+    </div>
+  </div>
+
+  <div id="comp-loader" class="loader" style="display:none"><div class="spinner"></div>Running comparative analysis…</div>
+
+  <!-- Results -->
+  <div id="comp-results" style="display:none">
+    <div class="section-divider">Station Rankings</div>
+    <div id="comp-ranking" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="card" style="padding:8px;overflow-x:auto;margin-bottom:16px">
+      <table class="data-table" id="comp-desc-table"></table>
+    </div>
+
+    <div class="section-divider">Time Series Comparison</div>
+    <div class="section-divider">Exceedance Timeline</div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px"><div id="compliance-daily-plot" style="min-height:340px"></div></div>
+      <div class="card" style="padding:8px"><div id="compliance-hourly-plot" style="min-height:340px"></div></div>
+    </div>
+    <div class="card" style="padding:8px;margin-bottom:16px">
+      <div id="comp-ts-plot" style="min-height:380px"></div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Diurnal Profiles</div>
+        <div id="comp-diurnal-plot" style="min-height:300px"></div>
+      </div>
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Monthly Means</div>
+        <div id="comp-monthly-plot" style="min-height:300px"></div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:16px">
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Seasonal Means</div>
+        <div id="comp-seasonal-plot" style="min-height:300px"></div>
+      </div>
+      <div class="card" style="padding:8px">
+        <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Pairwise Correlation Matrix</div>
+        <div id="comp-corr-plot" style="min-height:300px"></div>
+      </div>
+    </div>
+
+    <div class="section-divider">Percentile Comparison</div>
+    <div class="card" style="padding:8px;margin-bottom:16px">
+      <div id="comp-pct-plot" style="min-height:300px"></div>
+    </div>
+
+    <div id="comp-exceedance-card" style="display:none">
+      <div class="section-divider">Exceedance Analysis</div>
+      <div id="comp-exceedance-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    </div>
+
+    <div id="comp-anova-card" class="card" style="display:none;margin-bottom:16px">
+      <div class="card-title">ANOVA Test (Are station means significantly different?)</div>
+      <div id="comp-anova-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: CLEAN                                              -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-clean" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Data Cleaning & Processing</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Select provider, configure options, then clean.</p>
+
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Provider & Cleaning Options</div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Data Provider</label>
+          <select class="form-select" id="clean-provider">
+            <option value="purpleair">PurpleAir</option>
+            <option value="airnote">Airnote</option>
+            <option value="airgradient">AirGradient</option>
+            <option value="clarity">Clarity</option>
+            <option value="airqo">AirQo</option>
+            <option value="airqoon">AirQoon</option>
+            <option value="airbeam">AirBeam</option>
+            <option value="sensirion">Sensirion SEN5x/SPS30</option>
+            <option value="atmotube">Atmotube Pro</option>
+            <option value="pms5003">Plantower PMS5003/7003</option>
+            <option value="generic">Generic / Auto-Detect</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+          <div class="toggle-wrap" onclick="toggleOpt('apply_pm25_correction')">
+            <div class="toggle-track off" id="tog-apply_pm25_correction"><div class="toggle-thumb"></div></div>
+            <span class="toggle-label">Apply EPA-TTQ PM2.5 Correction</span>
+          </div>
+          <div class="toggle-wrap" onclick="toggleOpt('resample_hourly')">
+            <div class="toggle-track off" id="tog-resample_hourly"><div class="toggle-thumb"></div></div>
+            <span class="toggle-label">Resample to Hourly Averages</span>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">Start Date</label>
+            <input type="date" class="form-input" id="clean-start"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date</label>
+            <input type="date" class="form-input" id="clean-end"/>
+          </div>
+        </div>
+        <div class="card" id="airnote-mapping-card" style="display:none;background:var(--bg2);padding:14px;margin:0 0 16px">
+          <div class="card-title" style="margin-bottom:6px">Provider Column Mapping</div>
+          <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">
+            Map uploaded headers to canonical fields used by all provider cleaners. Leave unavailable fields as None.
+          </div>
+          <div id="airnote-mapping-grid" class="grid2" style="gap:10px"></div>
+        </div>
+        <button class="btn btn-primary btn-full btn-lg" onclick="cleanData()" id="clean-btn">
+          🧪 Clean Data
+        </button>
+      </div>
+
+      <div class="card" id="export-card" style="display:none">
+        <div class="card-title">Export Cleaned Data</div>
+        <div class="flex flex-gap">
+          <button class="btn btn-ghost btn-sm" onclick="exportData('csv')">⬇ CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportData('xlsx')">⬇ Excel</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-title">Column Manager</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="grid2" style="gap:8px">
+            <select class="form-select" id="rename-old" style="font-size:12px"></select>
+            <input type="text" class="form-input" id="rename-new" placeholder="New name" style="font-size:12px"/>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="renameColumn()">✏️ Rename</button>
+          <div class="grid2" style="gap:8px">
+            <select class="form-select" id="delete-col" style="font-size:12px"></select>
+            <button class="btn btn-danger btn-sm" onclick="deleteColumn()">🗑 Delete</button>
+          </div>
+          <input type="text" class="form-input" id="add-col-name" placeholder="New column name" style="font-size:12px"/>
+          <input type="text" class="form-input" id="add-col-expr" placeholder="Expression (e.g. pm2.5 * 1.1)" style="font-size:12px"/>
+          <button class="btn btn-success btn-sm" onclick="addColumn()">➕ Add Column</button>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Temporal Aggregation</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Frequency</label>
+            <select class="form-select" id="agg-freq">
+              <option value="H">Hourly</option>
+              <option value="D">Daily</option>
+              <option value="W">Weekly</option>
+              <option value="M">Monthly</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Function</label>
+            <select class="form-select" id="agg-func">
+              <option value="mean">Mean</option>
+              <option value="median">Median</option>
+              <option value="max">Max</option>
+              <option value="min">Min</option>
+              <option value="sum">Sum</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-full" onclick="aggregateData()">⏱ Aggregate</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Fill Missing Values</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Method</label>
+            <select class="form-select" id="interp-method">
+              <option value="linear">Linear</option>
+              <option value="time">Time</option>
+              <option value="spline">Spline</option>
+              <option value="ffill">Forward Fill</option>
+              <option value="bfill">Back Fill</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Gap (hours)</label>
+            <input type="number" class="form-input" id="interp-limit" placeholder="unlimited" min="1"/>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-full" onclick="interpolateData()">🩹 Fill Gaps</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Remove Outliers</div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Column</label>
+            <select class="form-select" id="out-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Method</label>
+            <select class="form-select" id="out-method">
+              <option value="iqr">IQR</option>
+              <option value="zscore">Z-Score</option>
+              <option value="percentile">Percentile</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Threshold (IQR multiplier / σ / percentile)</label>
+          <input type="number" class="form-input" id="out-thresh" value="3" step="0.5"/>
+        </div>
+        <button class="btn btn-warning btn-sm btn-full" onclick="removeOutliers()">🚫 Remove Outliers</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cleaned-preview" style="display:none">
+    <div class="section-divider">Cleaned Data Preview</div>
+    <div class="card">
+      <div class="flex flex-wrap flex-gap items-center" style="margin-bottom:14px">
+        <span class="badge" id="clean-rows-badge" style="background:#10b98120;color:var(--green);border:1px solid #10b98140"></span>
+        <span class="badge" id="clean-cols-badge" style="background:#7c3aed20;color:var(--purple);border:1px solid #7c3aed40"></span>
+      </div>
+      <div class="data-table-wrap"><table class="data-table" id="cleaned-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: EXPLORE                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-explore" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">Data Exploration</h2>
+  <div id="explore-loader" class="loader" style="display:none"><div class="spinner"></div>Loading statistics…</div>
+  <div id="explore-content" style="display:none">
+    <div class="section-divider">Dataset Overview</div>
+    <div id="explore-shape-grid" class="grid4" style="margin-bottom:20px"></div>
+
+    <div class="section-divider">Missing Data</div>
+    <div id="missing-grid" class="grid-auto" style="margin-bottom:20px"></div>
+
+    <div class="section-divider">Columns</div>
+    <div id="columns-grid" style="display:none;margin-bottom:20px">
+      <div id="columns-list" class="grid-auto"></div>
+    </div>
+
+    <div class="section-divider">Descriptive Statistics</div>
+    <div class="card" style="padding:8px;overflow-x:auto">
+      <table class="data-table" id="desc-table"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: PLOTS                                              -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-plots" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">Plot Dashboard</h2>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Plot Builder</div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Plot Type</label>
+        <select class="form-select" id="plot-type" onchange="updatePlotControls()">
+          <optgroup label="Time Series">
+            <option value="timeseries">Time Series</option>
+            <option value="area">Area Chart</option>
+            <option value="calendar">Calendar Heatmap</option>
+          </optgroup>
+          <optgroup label="Statistical">
+            <option value="boxplot">Box Plot</option>
+            <option value="histogram">Histogram</option>
+            <option value="seasonal_box">Seasonal Box Plot</option>
+            <option value="diurnal">Diurnal Profile</option>
+            <option value="monthly">Monthly Profile</option>
+            <option value="time_of_week">Time-of-Week Heatmap</option>
+          </optgroup>
+          <optgroup label="Relationships">
+            <option value="scatter">Scatter + Regression</option>
+            <option value="correlation">Correlation Matrix</option>
+            <option value="windrose">Wind Rose</option>
+          </optgroup>
+          <optgroup label="AQI">
+            <option value="aqi_bar">AQI Category Bar</option>
+          </optgroup>
+          <optgroup label="Sensor-Specific">
+            <option value="pm_size_dist">PM Size Distribution</option>
+            <option value="nc_timeseries">NC Fraction Timeseries (SPS30/SEN5x)</option>
+            <option value="co2_met">CO2 + Met Dual-Axis (AirGradient/Sensirion)</option>
+            <option value="radar">Multi-Pollutant Radar</option>
+            <option value="violin">Violin Plot</option>
+            <option value="bubble">Bubble Chart (X, Y, Size)</option>
+            <option value="exceedance">Exceedance Frequency Curve</option>
+          </optgroup>
+          <optgroup label="Spatial">
+            <option value="spatial">Spatial Heatmap (lat/lon)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Multi-column select -->
+      <div id="plot-ctrl-multi" style="display:block">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Columns (click to select)</label>
+          <div id="col-checkboxes" class="flex flex-wrap" style="gap:6px;margin-top:4px;max-height:120px;overflow-y:auto"></div>
+        </div>
+      </div>
+
+      <!-- Single column -->
+      <div id="plot-ctrl-single" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Column</label>
+          <select class="form-select" id="plot-single-col"></select>
+        </div>
+      </div>
+
+      <!-- XY scatter / bubble -->
+      <div id="plot-ctrl-xy" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">X Column</label>
+            <select class="form-select" id="plot-x-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Y Column</label>
+            <select class="form-select" id="plot-y-col"></select>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group" id="bubble-size-group" style="display:none">
+            <label class="form-label">Size by (Bubble only)</label>
+            <select class="form-select" id="plot-size-col"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wind rose -->
+      <div id="plot-ctrl-wind" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Wind Speed Column</label>
+            <select class="form-select" id="plot-ws-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Wind Direction Column</label>
+            <select class="form-select" id="plot-wd-col"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar controls -->
+      <div id="plot-ctrl-calendar" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Year filter</label>
+            <select class="form-select" id="plot-cal-year">
+              <option value="">All years (merged)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Colour ramp</label>
+            <select class="form-select" id="plot-cal-cmap">
+              <option value="YlOrRd" selected>YlOrRd</option>
+              <option value="Jet">Jet</option>
+              <option value="Spectral">Spectral</option>
+              <option value="RdYlGn">RdYlGn</option>
+              <option value="Coolwarm">Coolwarm</option>
+              <option value="Hot">Hot</option>
+              <option value="Viridis">Viridis</option>
+              <option value="Plasma">Plasma</option>
+              <option value="Inferno">Inferno</option>
+              <option value="Magma">Magma</option>
+              <option value="Cividis">Cividis</option>
+              <option value="Blues">Blues</option>
+              <option value="Greens">Greens</option>
+              <option value="RdBu">RdBu</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2)">
+            <input type="checkbox" id="plot-cal-reverse" style="accent-color:var(--blue)"/>
+            Reverse colour ramp
+          </label>
+        </div>
+      </div>
+
+      <!-- Box plot group-by -->
+      <div id="plot-ctrl-boxgroup" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Group by</label>
+          <select class="form-select" id="plot-box-group">
+            <option value="month">Month</option>
+            <option value="season" selected>Season</option>
+            <option value="hour">Hour of Day</option>
+            <option value="location">Location / Station</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Histogram bins -->
+      <div id="plot-ctrl-bins" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Number of bins: <span id="plot-bins-label">40</span></label>
+          <input type="range" id="plot-bins" min="5" max="200" value="40" step="5"
+            style="width:100%;accent-color:var(--blue)"
+            oninput="document.getElementById('plot-bins-label').textContent=this.value"/>
+        </div>
+      </div>
+
+      <div id="plot-ctrl-comparison" style="display:none">
+        <div class="grid2" style="margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">Hue / colour by</label>
+            <select class="form-select" id="plot-color-col"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Facet / small multiples</label>
+            <select class="form-select" id="plot-facet-col"></select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label class="form-label">Hue palette</label>
+          <select class="form-select" id="plot-hue-palette">
+            <option value="Plotly">Plotly</option>
+            <option value="D3">D3</option>
+            <option value="G10">G10</option>
+            <option value="Safe">Colorblind-safe</option>
+            <option value="Set2">Set 2</option>
+            <option value="Pastel">Pastel</option>
+            <option value="Dark24">Dark 24</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Scatter standalone colour-by -->
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Chart Title (optional)</label>
+        <input type="text" class="form-input" id="plot-title" placeholder="Auto-generated if blank"/>
+      </div>
+
+      <button class="btn btn-primary btn-full" onclick="generatePlot()" id="plot-btn">
+        📊 Generate Plot
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:4px">Live Preview</div>
+      <div id="plot-loader" class="loader" style="display:none"><div class="spinner"></div>Generating…</div>
+      <div id="plot-area">
+        <div class="plot-empty">
+          <div class="plot-empty-icon">📊</div>
+          <div style="font-size:13px;color:var(--text4)">Configure and click Generate Plot</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" onclick="savePlot()">💾 Save to Gallery</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div id="gallery-section" style="display:none">
+    <div class="section-divider">Saved Plots</div>
+    <div id="gallery-grid" class="grid2"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MAP                                                -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-map" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:20px">Spatial Map</h2>
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+      <div class="form-group" style="min-width:140px">
+        <label class="form-label">Map Style</label>
+        <select class="form-select" id="map-style" onchange="changeMapTile()">
+          <option value="osm">OpenStreetMap</option>
+          <option value="dark">Dark (CartoDB)</option>
+          <option value="light">Light (CartoDB)</option>
+          <option value="topo">Topographic</option>
+        </select>
+      </div>
+      <div class="form-group" style="min-width:140px">
+        <label class="form-label">Colour by Parameter</label>
+        <select class="form-select" id="map-color-param" onchange="reloadMapData()">
+          <option value="pm2.5">PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="AQI">AQI</option>
+          <option value="CO2">CO2</option>
+          <option value="temperature">Temperature</option>
+          <option value="RH">Humidity</option>
+          <option value="O3">O3</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="toggle-wrap" onclick="toggleMapLayer('heat')">
+          <div class="toggle-track on" id="tog-heat"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Heatmap</span>
+        </div>
+        <div class="toggle-wrap" onclick="toggleMapLayer('markers')">
+          <div class="toggle-track on" id="tog-markers"><div class="toggle-thumb"></div></div>
+          <span class="toggle-label">Markers</span>
+        </div>
+      </div>
+      <div style="margin-left:auto;color:var(--text3);font-size:12px" id="map-pt-count">—</div>
+    </div>
+  </div>
+  <div style="position:relative">
+    <div id="map"></div>
+    <div id="aqi-legend">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:6px">AQI Scale</div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#00e400"></div><span style="color:var(--text3);font-size:11px">Good (0–50)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#ffff00"></div><span style="color:var(--text3);font-size:11px">Moderate (51–100)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#ff7e00"></div><span style="color:var(--text3);font-size:11px">Sensitive (101–150)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#ff0000"></div><span style="color:var(--text3);font-size:11px">Unhealthy (151–200)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#8f3f97"></div><span style="color:var(--text3);font-size:11px">Very Unhealthy (201–300)</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:2px;background:#7e0023"></div><span style="color:var(--text3);font-size:11px">Hazardous (&gt;300)</span></div>
+    </div>
+  </div>
+  <div id="map-stats" class="grid4" style="margin-top:14px;display:none"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: EXTREME                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-extreme" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Extreme Value Analysis</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Block maxima, Gumbel return levels, WHO/EPA exceedance, top-N events.</p>
+  <div class="card">
+    <div class="card-title">Analysis Configuration</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:16px">
+      <div class="form-group">
+        <label class="form-label">Pollutant / Column</label>
+        <select class="form-select" id="ext-col">
+          <option value="pm2.5">PM2.5</option>
+          <option value="pm10">PM10</option>
+          <option value="pm1.0">PM1.0</option>
+          <option value="O3">O3</option>
+          <option value="CO">CO</option>
+          <option value="SO2">SO2</option>
+          <option value="NOx">NOx</option>
+          <option value="NO2">NO2</option>
+          <option value="CO2">CO2</option>
+          <option value="VOC">VOC</option>
+          <option value="temperature">Temperature</option>
+          <option value="RH">Humidity</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Block Period</label>
+        <select class="form-select" id="ext-block">
+          <option value="D">Daily</option>
+          <option value="W">Weekly</option>
+          <option value="ME" selected>Monthly</option>
+          <option value="A">Annual</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Top-N Events</label>
+        <input type="number" class="form-input" id="ext-topn" value="10"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Histogram Bins</label>
+        <input type="number" class="form-input" id="ext-bins" value="40"/>
+      </div>
+    </div>
+    <div class="flex flex-gap" style="margin-bottom:16px">
+      <div class="toggle-wrap" onclick="toggleOpt2('who')">
+        <div class="toggle-track on" id="tog2-who"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Compare WHO Standards</span>
+      </div>
+      <div class="toggle-wrap" onclick="toggleOpt2('epa')">
+        <div class="toggle-track on" id="tog2-epa"><div class="toggle-thumb"></div></div>
+        <span class="toggle-label">Compare Country's EPA Guidelines</span>
+      </div>
+    </div>
+    <div class="card" style="background:var(--bg2);padding:14px;margin-bottom:16px">
+      <div class="card-title" style="margin-bottom:6px">Guideline Values (Optional)</div>
+      <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">
+        Enter values for the selected pollutant. Blank fields use the built-in defaults.
+      </div>
+      <div class="grid2" style="gap:14px">
+        <div class="form-group">
+          <label class="form-label">WHO 24h</label>
+          <input type="number" class="form-input" id="ext-who-24h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA 24h</label>
+          <input type="number" class="form-input" id="ext-epa-24h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WHO Annual</label>
+          <input type="number" class="form-input" id="ext-who-annual" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA Annual</label>
+          <input type="number" class="form-input" id="ext-epa-annual" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WHO 8h</label>
+          <input type="number" class="form-input" id="ext-who-8h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA 8h</label>
+          <input type="number" class="form-input" id="ext-epa-8h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">WHO 1h</label>
+          <input type="number" class="form-input" id="ext-who-1h" min="0" step="any" placeholder="Default"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Country's EPA 1h</label>
+          <input type="number" class="form-input" id="ext-epa-1h" min="0" step="any" placeholder="Default"/>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="runExtreme()">⚡ Run Extreme Analysis</button>
+  </div>
+  <div id="ext-loader" class="loader" style="display:none"><div class="spinner"></div>Running extreme value analysis…</div>
+  <div id="ext-results" style="display:none">
+    <div class="section-divider">Descriptive Statistics</div>
+    <div id="ext-desc-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="section-divider">Standard Comparison</div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" id="ext-who-card" style="border-top:3px solid var(--green)"><div class="card-title">WHO Guidelines</div><div id="ext-who-body"></div></div>
+      <div class="card" id="ext-epa-card" style="border-top:3px solid var(--blue)"><div class="card-title">Country's EPA</div><div id="ext-epa-body"></div></div>
+    </div>
+    <div class="section-divider">Return Levels (Gumbel)</div>
+    <div id="ext-rl-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px"><div id="ext-hist-plot" style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="ext-pct-plot"  style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="ext-bm-plot"   style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="ext-rl-plot"   style="min-height:300px"></div></div>
+    </div>
+    <div class="section-divider">Top Extreme Events</div>
+    <div class="card" style="padding:8px">
+      <div class="data-table-wrap"><table class="data-table" id="ext-events-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: COMPLIANCE                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-compliance" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Compliance Monitor</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Identify guideline exceedances, document episodes, and prepare an evidence-based response.</p>
+  <div class="card">
+    <div class="card-title">Monitoring Configuration</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group"><label class="form-label">Sensor reading</label><select class="form-select" id="compliance-col"></select></div>
+    </div>
+    <div class="card" style="background:var(--bg2);padding:14px;margin:0 0 16px">
+      <div class="card-title" style="margin-bottom:6px">Guideline Values (Optional)</div>
+      <div style="color:var(--text3);font-size:12px;line-height:1.5;margin-bottom:12px">Enter values for the selected pollutant. Blank fields use the built-in defaults.</div>
+      <div class="grid2" style="gap:10px">
+        <div class="form-group"><label class="form-label">WHO 24h</label><input type="number" class="form-input" id="compliance-who-24h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA 24h</label><input type="number" class="form-input" id="compliance-epa-24h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">WHO Annual</label><input type="number" class="form-input" id="compliance-who-annual" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA Annual</label><input type="number" class="form-input" id="compliance-epa-annual" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">WHO 8h</label><input type="number" class="form-input" id="compliance-who-8h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA 8h</label><input type="number" class="form-input" id="compliance-epa-8h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">WHO 1h</label><input type="number" class="form-input" id="compliance-who-1h" min="0" step="any" placeholder="Default"/></div>
+        <div class="form-group"><label class="form-label">Country's EPA 1h</label><input type="number" class="form-input" id="compliance-epa-1h" min="0" step="any" placeholder="Default"/></div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="runCompliance()" id="compliance-btn">⚖ Assess Compliance</button>
+  </div>
+  <div id="compliance-loader" class="loader" style="display:none"><div class="spinner"></div>Assessing readings…</div>
+  <div id="compliance-results" style="display:none">
+    <div id="compliance-summary" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="section-divider">Guideline Results</div>
+    <div id="compliance-standards" class="grid2" style="margin-bottom:20px"></div>
+    <div class="section-divider">Exceedance Timeline</div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px"><div id="compliance-daily-plot" style="min-height:340px"></div></div>
+      <div class="card" style="padding:8px"><div id="compliance-hourly-plot" style="min-height:340px"></div></div>
+    </div>
+    <div class="section-divider">AI-Assisted Recommendations</div>
+    <div class="card" id="compliance-recommendations"><div class="card-title">Evidence-based response guidance</div></div>
+    <div style="color:var(--text4);font-size:11px;margin-top:10px">Screening support only. Confirm applicable law, averaging period, units, calibration, and public-health protocol with the responsible authority.</div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MACHINE LEARNING                                  -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-machinelearning" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Machine Learning Analysis</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Use transparent time-series models to assess trends, recurring hourly patterns, and unusual readings.</p>
+  <div class="card">
+    <div class="card-title">Model Configuration</div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="form-group"><label class="form-label">Target reading</label><select class="form-select" id="ml-target"></select></div>
+      <div class="form-group"><label class="form-label">Analysis model</label>
+        <select class="form-select" id="ml-model">
+          <option value="linear_regression">Linear Regression</option>
+          <option value="random_forest">Random Forest</option>
+          <option value="svm">Support Vector Regression (SVM)</option>
+          <option value="xgboost">XGBoost</option>
+          <option value="gradient_boosting">Gradient Boosting</option>
+          <option value="extra_trees">Extra Trees</option>
+          <option value="trend">Linear trend and holdout test</option>
+          <option value="seasonal">Hourly seasonal baseline</option>
+          <option value="anomaly">Robust anomaly detection</option>
+        </select>
+      </div>
+      <div class="form-group" id="ml-z-wrap" style="display:none"><label class="form-label">Anomaly threshold (robust z-score)</label><input type="number" class="form-input" id="ml-z" value="3" min="1" step="0.1"/></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><label class="form-label">Feature columns (optional; blank uses all numeric sensor columns)</label><div id="ml-features" class="flex flex-wrap flex-gap"></div></div>
+    <button class="btn btn-primary btn-lg" onclick="runMachineLearning()" id="ml-btn">🤖 Run Analysis</button>
+  </div>
+  <div id="ml-loader" class="loader" style="display:none"><div class="spinner"></div>Running model…</div>
+  <div id="ml-results" style="display:none">
+    <div id="ml-summary" class="grid-auto" style="margin-bottom:20px"></div>
+    <div class="card"><div class="card-title">Interpretation</div><div id="ml-message" style="color:var(--text2);line-height:1.6"></div></div>
+    <div class="section-divider">Model Visualization</div>
+    <div class="card" style="padding:8px"><div id="ml-main-plot" style="min-height:360px"></div></div>
+    <div class="card" id="ml-detail-card"><div class="card-title">Model Output</div><div id="ml-detail"></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: ABOUT                                             -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-about" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">AQACT</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Air Quality Analysis &amp; Compliance Assessment Tool</p>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Purpose</div>
+      <p style="color:var(--text2);line-height:1.7;font-size:13px">
+        AQACT helps researchers, environmental officers, policy makers, and journalists turn sensor data into understandable air-quality evidence. It supports data cleaning, exploration, visualization, compliance screening, and model-based analysis.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-title">Typical Workflow</div>
+      <div style="color:var(--text2);line-height:1.8;font-size:13px">
+        <div>1. Upload CSV or Excel sensor data.</div>
+        <div>2. Map source columns to canonical air-quality fields.</div>
+        <div>3. Clean, validate, and explore the readings.</div>
+        <div>4. Review plots, compliance episodes, and model outputs.</div>
+        <div>5. Export evidence for reporting and further review.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Analysis Scope</div>
+      <div class="grid2" style="gap:10px;color:var(--text2);font-size:12px;line-height:1.5">
+        <div><strong style="color:var(--blue)">Data</strong><br/>Provider cleaning, column mapping, missing values, resampling, and export.</div>
+        <div><strong style="color:var(--green)">Compliance</strong><br/>WHO and Country's EPA guideline comparisons, episodes, timelines, and response guidance.</div>
+        <div><strong style="color:var(--purple)">Models</strong><br/>Trend, seasonal baseline, anomaly detection, Random Forest, SVM, XGBoost, and related models.</div>
+        <div><strong style="color:var(--orange)">Evidence</strong><br/>Charts, summary statistics, extreme events, maps, and model evaluation metrics.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Responsible Use</div>
+      <p style="color:var(--text2);line-height:1.7;font-size:13px">
+        Compliance results are screening evidence, not a legal determination. Confirm the applicable national standard, units, averaging period, instrument calibration, siting requirements, and data completeness with the responsible authority before enforcement, public alerts, or publication.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB: MODEL EVAL                                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div id="panel-modeleval" class="tab-panel">
+  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Model Evaluation</h2>
+  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Pair an observed column against a model column and compute MB, RMSE, R, IOA, FAC2, KGE and more.</p>
+  <div class="card">
+    <div class="card-title">Column Selection</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end">
+      <div class="form-group">
+        <label class="form-label">Observed Column</label>
+        <select class="form-select" id="eval-obs-col"><option value="">— select —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Model / Reference Column</label>
+        <select class="form-select" id="eval-mod-col"><option value="">— select —</option></select>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="runModelEval()">📈 Run Evaluation</button>
+    </div>
+  </div>
+  <div id="eval-loader" class="loader" style="display:none"><div class="spinner"></div>Computing metrics…</div>
+  <div id="eval-results" style="display:none">
+    <div class="section-divider">Performance Metrics</div>
+    <div id="eval-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px"></div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-family:monospace;font-size:15px;color:var(--text);text-align:center;padding:8px" id="eval-equation"></div>
+    </div>
+    <div id="eval-daily-section" style="display:none">
+      <div class="section-divider">Daily Aggregated Metrics</div>
+      <div id="eval-daily-grid" class="grid-auto" style="margin-bottom:20px"></div>
+    </div>
+    <div class="grid2" style="margin-bottom:20px">
+      <div class="card" style="padding:8px;grid-column:1/-1"><div id="eval-scatter-plot" style="min-height:420px"></div></div>
+      <div class="card" style="padding:8px"><div id="eval-taylor-plot" style="min-height:300px"></div></div>
+      <div class="card" style="padding:8px"><div id="eval-bias-plot"   style="min-height:300px"></div></div>
+    </div>
+    <div class="section-divider">Performance Rating</div>
+    <div class="card" id="eval-rating-card">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+        <div style="font-size:28px;font-weight:800" id="eval-rating-label"></div>
+        <div style="font-size:13px;color:var(--text3)" id="eval-rating-sub"></div>
+      </div>
+      <div class="progress-bar" style="margin-bottom:14px">
+        <div class="progress-fill" id="eval-rating-bar" style="width:0%"></div>
+      </div>
+      <div id="eval-criteria-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#main -->
+
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════════
+     JavaScript
+     ════════════════════════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────────────────────
+   Plotly guard
+   ───────────────────────────────────────────────────────── */
+function plotlyReady(cb) {
+  if (typeof Plotly !== 'undefined') { cb(); return; }
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    if (typeof Plotly !== 'undefined') { clearInterval(t); cb(); return; }
+    if (n > 150) { clearInterval(t); document.getElementById('plotly-error-banner').style.display='flex'; }
+  }, 100);
+}
+
+/* ─────────────────────────────────────────────────────────
+   Global State
+   ───────────────────────────────────────────────────────── */
+const STATE = {
+  sessionId:null, columns:[], shape:[0,0], dtypes:{},
+  isCleaned:false, queuedFiles:[], batchFiles:[], msFiles:[],
+  mapInstance:null, mapTileLayer:null, mapHeatLayer:null, mapMarkers:[],
+  showHeat:true, showMarkers:true,
+  savedPlots:[], galleryCount:0,
+  cleanToggles:{ apply_pm25_correction:true, resample_hourly:true },
+  extremeToggles:{ who:true, epa:true },
+  msToggles:{ apply_pm25_correction:true, resample_hourly:true },
+  batchId:null,
+  theme:'dark',
+};
+
+/* ─────────────────────────────────────────────────────────
+   Theme Toggle
+   ───────────────────────────────────────────────────────── */
+function toggleTheme() {
+  STATE.theme = STATE.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', STATE.theme === 'light' ? 'light' : '');
+  const btn = document.getElementById('theme-btn');
+  btn.textContent = STATE.theme === 'dark' ? '🌙 Dark' : '☀️ Light';
+  // Re-render all visible plots with appropriate layout
+  toast(`Switched to ${STATE.theme} mode`, 'success', 1500);
+}
+
+function getLightLayout() {
+  return {
+    paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+    font:{ color:'#1e293b', size:12, family:'Segoe UI,system-ui,sans-serif' },
+    margin:{ t:44,r:20,b:56,l:60 },
+    xaxis:{ gridcolor:'#e2e8f0', zerolinecolor:'#cbd5e1', linecolor:'#cbd5e1' },
+    yaxis:{ gridcolor:'#e2e8f0', zerolinecolor:'#cbd5e1', linecolor:'#cbd5e1' },
+    legend:{ bgcolor:'rgba(255,255,255,0.9)', bordercolor:'#cbd5e1', borderwidth:1, font:{color:'#1e293b'} },
+  };
+}
+
+function getDarkLayout() {
+  return {
+    paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+    font:{ color:'#94a3b8', size:12, family:'Segoe UI,system-ui,sans-serif' },
+    margin:{ t:44,r:20,b:56,l:60 },
+    xaxis:{ gridcolor:'#1e2a3a', zerolinecolor:'#2d3748', linecolor:'#2d3748' },
+    yaxis:{ gridcolor:'#1e2a3a', zerolinecolor:'#2d3748', linecolor:'#2d3748' },
+    legend:{ bgcolor:'#0f1117', bordercolor:'#2d3748', borderwidth:1, font:{color:'#94a3b8'} },
+  };
+}
+
+function applyDarkLayout(extra) {
+  const base = STATE.theme === 'light' ? getLightLayout() : getDarkLayout();
+  return Object.assign({}, base, extra,
+    extra.xaxis ? { xaxis: Object.assign({}, base.xaxis, extra.xaxis) } : {},
+    extra.yaxis ? { yaxis: Object.assign({}, base.yaxis, extra.yaxis) } : {}
+  );
+}
+
+const PLOT_CONFIG = {
+  responsive:true, displaylogo:false,
+  modeBarButtonsToRemove:['lasso2d','select2d'],
+  toImageButtonOptions:{ format:'png', scale:2, filename:'AQACT_plot' },
+};
+
+/* ─────────────────────────────────────────────────────────
+   Utilities
+   ───────────────────────────────────────────────────────── */
+function toast(msg, type='success', duration=4000) {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .4s';
+    setTimeout(()=>el.remove(), 400); }, duration);
+}
+
+async function api(endpoint, body={}, method='POST') {
+  const res = await fetch(endpoint, {
+    method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  if (loading) { btn.dataset.orig = btn.innerHTML; btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block"></span> Working…'; }
+  else          { btn.innerHTML = btn.dataset.orig || ''; }
+}
+
+function buildTable(tableId, columns, rows, maxRows=150) {
+  const tbl = document.getElementById(tableId); if (!tbl) return;
+  const display = rows.slice(0, maxRows);
+  let h = '<thead><tr>' + columns.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  display.forEach(row => {
+    h += '<tr>' + columns.map(c => {
+      const v = row[c];
+      return `<td>${v===null||v===undefined?'<span style="color:var(--text4)">—</span>':v}</td>`;
+    }).join('') + '</tr>';
+  });
+  h += '</tbody>';
+  if (rows.length > maxRows)
+    h += `<tfoot><tr><td colspan="${columns.length}" class="table-footer">Showing ${maxRows} of ${rows.length.toLocaleString()} rows</td></tr></tfoot>`;
+  tbl.innerHTML = h;
+}
+
+function refreshColumnDropdowns() {
+  const cols = STATE.columns;
+  ['rename-old','delete-col','plot-single-col','plot-x-col','plot-y-col',
+   'plot-color-col','plot-facet-col','plot-size-col','plot-ws-col','plot-wd-col','eval-obs-col','eval-mod-col','ext-col','out-col']
+  .forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const isOpt = ['plot-color-col'].includes(id);
+    el.innerHTML = (isOpt ? '<option value="">None</option>' : '<option value="">— select —</option>') +
+      cols.map(c=>`<option value="${c}">${c}</option>`).join('');
+  });
+  buildColCheckboxes(cols);
+  buildColumnsOverview(cols);
+  buildAirnoteMapping(cols);
+  ['compliance-col','ml-target'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    el.innerHTML = '<option value="">— select —</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
+    const preferred = ['pm2.5','pm10','O3','NO2'].find(c => cols.includes(c));
+    if (preferred) el.value = preferred;
+  });
+    const featureBox = document.getElementById('ml-features');
+    if (featureBox) featureBox.innerHTML = cols.filter(c => c !== 'datetime').map(c => `<label style="font-size:12px;color:var(--text2)"><input type="checkbox" class="ml-feature" value="${c}" ${['temperature','RH','pm10','NO2'].includes(c)?'checked':''}/> ${c}</label>`).join('');
+  // Extract year list from "year" column presence in preview data
+  if (STATE._previewRows && cols.includes("year")) {
+    const ys = [...new Set(STATE._previewRows.map(r=>r.year).filter(y=>y!=null&&!isNaN(y)))].sort();
+    STATE._yearList = ys;
+  }
+  refreshCalendarYears();
+  refreshScatterColorBy();
+}
+
+function buildAirnoteMapping(cols) {
+  const card = document.getElementById('airnote-mapping-card');
+  const grid = document.getElementById('airnote-mapping-grid');
+  if (!card || !grid) return;
+  renderColumnMapping(grid, cols, 'airnote-map');
+  card.style.display = 'block';
+}
+
+function getAirnoteMapping() {
+  return getColumnMapping('airnote-mapping-grid');
+}
+
+function renderColumnMapping(grid, cols, className) {
+  const fields = [
+    ['datetime','Datetime'], ['pm2.5','PM2.5'], ['pm1','PM1'], ['pm10','PM10'],
+    ['temperature','Temperature'], ['RH','Relative humidity'], ['pressure','Pressure'],
+    ['CO2','CO2'], ['VOC','VOC'], ['NO2','NO2'], ['NOx','NOx'], ['NH3','NH3'],
+    ['CO','CO'], ['O3','O3'], ['SO2','SO2'], ['rainfall','Rainfall'],
+    ['windspeed','Wind speed'], ['wind_direction','Wind direction'],
+    ['lat','Latitude'], ['lon','Longitude']
+  ];
+  grid.innerHTML = fields.map(([key, label]) => {
+    const preferred = key === 'pm1' ? ['pm1','pm1.0'] : [key];
+    const selected = preferred.find(col => cols.includes(col)) || '';
+    const options = '<option value="">Auto / none</option>' + cols.map(col =>
+      `<option value="${col}"${col === selected ? ' selected' : ''}>${col}</option>`).join('');
+    return `<div class="form-group">
+      <label class="form-label">${label}</label>
+      <select class="form-select ${className}" data-target="${key}" style="font-size:12px">${options}</select>
+    </div>`;
+  }).join('');
+}
+
+function getColumnMapping(gridId) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return {};
+  return Object.fromEntries([...grid.querySelectorAll('select[data-target]')]
+    .filter(el => el.value).map(el => [el.dataset.target, el.value]));
+}
+
+function buildColCheckboxes(cols) {
+  const box = document.getElementById('col-checkboxes'); if (!box) return;
+  const sel = ['pm2.5','pm10','pm1.0','temperature','RH','CO2','VOC','O3'];
+  box.innerHTML = cols.map(c => `
+    <button class="col-chip ${sel.includes(c)?'active':''}" onclick="toggleColChip(this,'${c}')"
+      style="background:${sel.includes(c)?'var(--blue)':'var(--bg4)'};
+      border:1px solid ${sel.includes(c)?'var(--blue)':'var(--border)'};
+      border-radius:20px;padding:3px 12px;font-size:12px;
+      color:${sel.includes(c)?'#fff':'var(--text3)'};cursor:pointer;transition:all .15s" data-col="${c}">${c}</button>
+  `).join('');
+}
+
+function toggleColChip(btn, col) {
+  const on = btn.classList.toggle('active');
+  btn.style.background = on ? 'var(--blue)' : 'var(--bg4)';
+  btn.style.color = on ? '#fff' : 'var(--text3)';
+  btn.style.borderColor = on ? 'var(--blue)' : 'var(--border)';
+}
+
+function getSelectedChips() {
+  return [...document.querySelectorAll('.col-chip.active')].map(b=>b.dataset.col);
+}
+
+function buildColumnsOverview(cols) {
+  const grid = document.getElementById('columns-list'); if (!grid) return;
+  const ICONS = { float64:'🔢', int64:'🔢', object:'📝', datetime64:'📅', bool:'☑' };
+  grid.innerHTML = cols.map(c => {
+    const dtype = STATE.dtypes?.[c] || 'unknown';
+    const icon = ICONS[dtype.split('[')[0]] || '❓';
+    return `<div style="background:var(--bg);border:1px solid var(--bg4);border-radius:8px;
+      padding:8px 12px;display:flex;align-items:center;gap:8px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div>
+      <span style="color:var(--text2);font-size:12px;overflow:hidden;text-overflow:ellipsis;flex:1">${c}</span>
+      <span style="font-size:11px;background:var(--bg4);padding:1px 6px;border-radius:10px;
+        color:var(--text4);flex-shrink:0">${dtype.split('(')[0]}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('columns-grid').style.display = 'block';
+}
+
+/* ─────────────────────────────────────────────────────────
+   Tab switching
+   ───────────────────────────────────────────────────────── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  const btn = [...document.querySelectorAll('.tab-btn')]
+    .find(b=>b.getAttribute('onclick')===`switchTab('${name}')`);
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById(`panel-${name}`);
+  if (panel) panel.classList.add('active');
+  if (name==='map' && STATE.sessionId) setTimeout(initMap, 100);
+  if (name==='explore' && STATE.sessionId) loadStats();
+}
+
+function enableTabs() {
+  ['clean','explore','plots','map','extreme','compliance','machinelearning','modeleval'].forEach(id => {
+    const btn = document.getElementById(`tab-${id}`);
+    if (btn) btn.disabled = false;
+  });
+}
+
+/* ─────────────────────────────────────────────────────────
+   Toggle helpers
+   ───────────────────────────────────────────────────────── */
+function toggleOpt(key) {
+  STATE.cleanToggles[key] = !STATE.cleanToggles[key];
+  document.getElementById(`tog-${key}`)?.classList.toggle('on', STATE.cleanToggles[key]);
+}
+
+function toggleOpt2(key) {
+  STATE.extremeToggles[key] = !STATE.extremeToggles[key];
+  document.getElementById(`tog2-${key}`)?.classList.toggle('on', STATE.extremeToggles[key]);
+}
+
+function toggleMSOpt(key) {
+  STATE.msToggles[key] = !STATE.msToggles[key];
+  const idMap = { apply_pm25_correction:'ms-tog-pm25', resample_hourly:'ms-tog-hourly' };
+  document.getElementById(idMap[key])?.classList.toggle('on', STATE.msToggles[key]);
+}
+
+function toggleMapLayer(layer) {
+  if (layer==='heat') {
+    STATE.showHeat = !STATE.showHeat;
+    document.getElementById('tog-heat').classList.toggle('on', STATE.showHeat);
+  } else {
+    STATE.showMarkers = !STATE.showMarkers;
+    document.getElementById('tog-markers').classList.toggle('on', STATE.showMarkers);
+  }
+  if (STATE.sessionId) renderMapLayers(STATE._mapData || []);
+}
+
+function onDataUpdated(data, msg) {
+  STATE.columns      = data.columns;
+  STATE.shape        = data.shape;
+  STATE.dtypes       = data.dtypes;
+  STATE._previewRows = data.preview || [];
+  STATE.isCleaned    = true;
+  document.getElementById('cleaned-dot').style.display = 'inline';
+  refreshColumnDropdowns();
+  if (msg) toast(msg);
+}
+
+/* ─────────────────────────────────────────────────────────
+   Drag / Drop helpers (shared)
+   ───────────────────────────────────────────────────────── */
+function handleDragOver(e, zoneId) {
+  e.preventDefault();
+  document.getElementById(zoneId)?.classList.add('drag-over');
+}
+
+function handleDragLeave(zoneId) {
+  document.getElementById(zoneId)?.classList.remove('drag-over');
+}
+
+function handleDrop(e, mode) {
+  e.preventDefault();
+  const zoneId = mode==='upload'?'drop-zone':mode==='batch'?'batch-drop-zone':'ms-drop-zone';
+  document.getElementById(zoneId)?.classList.remove('drag-over');
+  addFilesToQueue([...e.dataTransfer.files], mode);
+}
+
+function handleFileSelect(e, mode) { addFilesToQueue([...e.target.files], mode); }
+
+function addFilesToQueue(files, mode='upload') {
+  const allowed = ['csv','xlsx','xls','txt'];
+  const valid = files.filter(f => allowed.includes(f.name.split('.').pop().toLowerCase()));
+  if (!valid.length) { toast('No supported files (CSV, XLSX, XLS, TXT)', 'warn'); return; }
+  if (mode === 'upload')  { STATE.queuedFiles = [...STATE.queuedFiles, ...valid]; renderFileList('upload'); }
+  if (mode === 'batch')   { STATE.batchFiles  = [...STATE.batchFiles,  ...valid]; renderFileList('batch'); }
+  if (mode === 'ms')      { STATE.msFiles     = [...STATE.msFiles,     ...valid]; renderMsFileList(); }
+}
+
+function renderFileList(mode) {
+  if (mode === 'upload') {
+    const list = document.getElementById('file-list'), items = document.getElementById('file-items');
+    if (!STATE.queuedFiles.length) { list.style.display='none'; return; }
+    list.style.display='block';
+    items.innerHTML = STATE.queuedFiles.map((f,i)=>`
+      <div class="file-item">
+        <span class="file-icon">📄</span><span class="file-name">${f.name}</span>
+        <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
+        <button class="file-remove" onclick="removeFile(${i},'upload')">✕</button>
+      </div>`).join('');
+  } else {
+    const list = document.getElementById('batch-file-list'), items = document.getElementById('batch-file-items');
+    if (!STATE.batchFiles.length) { list.style.display='none'; return; }
+    list.style.display='block';
+    document.getElementById('batch-file-count').textContent = `Daily Files (${STATE.batchFiles.length})`;
+    items.innerHTML = STATE.batchFiles.map((f,i)=>`
+      <div class="file-item">
+        <span class="file-icon">📅</span><span class="file-name">${f.name}</span>
+        <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
+        <button class="file-remove" onclick="removeFile(${i},'batch')">✕</button>
+      </div>`).join('');
+  }
+}
+
+function renderMsFileList() {
+  const editor = document.getElementById('ms-station-editor');
+  editor.style.display = 'block';
+  const labels = document.getElementById('ms-station-labels');
+  labels.innerHTML = STATE.msFiles.map((f,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center">
+      <span style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis">${f.name}</span>
+      <input type="text" class="form-input" id="ms-label-${i}" value="${f.name.split('.')[0]}"
+        placeholder="Station name" style="font-size:12px"/>
+      <button class="file-remove" onclick="removeMsFile(${i})">✕</button>
+    </div>`).join('');
+}
+
+function removeFile(idx, mode) {
+  if (mode==='upload') { STATE.queuedFiles.splice(idx,1); renderFileList('upload'); }
+  else { STATE.batchFiles.splice(idx,1); renderFileList('batch'); }
+}
+
+function removeMsFile(idx) {
+  STATE.msFiles.splice(idx,1); renderMsFileList();
+}
+
+/* ─────────────────────────────────────────────────────────
+   UPLOAD TAB
+   ───────────────────────────────────────────────────────── */
+async function uploadFiles() {
+  if (!STATE.queuedFiles.length) { toast('Add at least one file first.', 'warn'); return; }
+  setLoading('upload-btn', true);
+  document.getElementById('upload-progress').style.display='block';
+  const fill = document.getElementById('progress-fill'), txt = document.getElementById('progress-text');
+  const fd = new FormData();
+  STATE.queuedFiles.forEach(f => fd.append('files', f));
+  try {
+    let prog=0;
+    const iv = setInterval(()=>{ prog=Math.min(prog+15,85); fill.style.width=prog+'%'; txt.textContent=`Uploading… ${prog}%`; }, 200);
+    const res = await fetch('/api/upload', { method:'POST', body:fd });
+    clearInterval(iv); fill.style.width='100%'; txt.textContent='Upload complete!';
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    STATE.sessionId    = data.session_id;
+    STATE.columns      = data.columns;
+    STATE.shape        = data.shape;
+    STATE.dtypes       = data.dtypes;
+    STATE._previewRows = data.preview || [];
+    renderColumnMapping(document.getElementById('batch-mapping-grid'), data.columns, 'batch-map');
+    document.getElementById('session-badge').style.display='flex';
+    document.getElementById('session-id-display').textContent=data.session_id;
+    enableTabs();
+    document.getElementById('preview-rows-badge').textContent=`${data.shape[0].toLocaleString()} rows`;
+    document.getElementById('preview-cols-badge').textContent=`${data.shape[1]} columns`;
+    buildTable('preview-table', data.columns, data.preview);
+    document.getElementById('upload-preview').style.display='block';
+    refreshColumnDropdowns();
+    toast(`Loaded ${data.shape[0].toLocaleString()} rows × ${data.shape[1]} columns ✓`);
+    setTimeout(()=>switchTab('clean'), 800);
+  } catch(e) { toast(`Upload failed: ${e.message}`, 'error'); }
+  finally {
+    setLoading('upload-btn', false);
+    setTimeout(()=>{ document.getElementById('upload-progress').style.display='none'; fill.style.width='0%'; }, 2000);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   BATCH STACK TAB
+   ───────────────────────────────────────────────────────── */
+async function batchUpload() {
+  if (!STATE.batchFiles.length) { toast('Add daily files first.', 'warn'); return; }
+  setLoading('batch-btn', true);
+  document.getElementById('batch-progress').style.display='block';
+  const fill = document.getElementById('batch-progress-fill'), txt = document.getElementById('batch-progress-text');
+  const fd = new FormData();
+  STATE.batchFiles.forEach(f => fd.append('files', f));
+  fd.append('provider', document.getElementById('batch-provider').value);
+  fd.append('station_name', document.getElementById('batch-station-name').value || 'Station');
+  try {
+    let prog=0;
+    const iv = setInterval(()=>{ prog=Math.min(prog+12,85); fill.style.width=prog+'%';
+      txt.textContent=`Stacking ${STATE.batchFiles.length} files… ${prog}%`; }, 200);
+    const res = await fetch('/api/batch_upload', { method:'POST', body:fd });
+    clearInterval(iv); fill.style.width='100%'; txt.textContent='Stacking complete!';
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    // Load into main session
+    STATE.sessionId    = data.session_id;
+    STATE.columns      = data.columns;
+    STATE.shape        = data.shape;
+    STATE.dtypes       = data.dtypes;
+    STATE._previewRows = data.preview || [];
+    document.getElementById('session-badge').style.display='flex';
+    document.getElementById('session-id-display').textContent=data.session_id;
+    enableTabs();
+    refreshColumnDropdowns();
+    // Show result
+    document.getElementById('batch-stacked-badge').textContent=`📦 ${data.stacked_count} files stacked`;
+    document.getElementById('batch-rows-badge').textContent=`${data.shape[0].toLocaleString()} rows`;
+    document.getElementById('batch-cols-badge').textContent=`${data.shape[1]} columns`;
+    if (data.failed_files?.length) {
+      const warn = document.getElementById('batch-warnings');
+      warn.style.display='block';
+      warn.innerHTML=`<div style="background:#2a1d0d;border:1px solid var(--yellow);border-radius:8px;padding:10px;font-size:12px;color:var(--yellow)">
+        ⚠️ ${data.failed_files.length} file(s) could not be read: ${data.failed_files.slice(0,3).join(', ')}${data.failed_files.length>3?'…':''}</div>`;
+    }
+    buildTable('batch-preview-table', data.columns, data.preview);
+    document.getElementById('batch-result').style.display='block';
+    toast(`Stacked ${data.stacked_count} files → ${data.shape[0].toLocaleString()} rows ✓`, 'success');
+    // Auto-fill provider in clean tab
+    const cp = document.getElementById('clean-provider');
+    if (cp && data.provider) cp.value = data.provider;
+    setTimeout(()=>switchTab('clean'), 1000);
+  } catch(e) { toast(`Batch stack failed: ${e.message}`, 'error'); }
+  finally {
+    setLoading('batch-btn', false);
+    setTimeout(()=>{ document.getElementById('batch-progress').style.display='none'; fill.style.width='0%'; }, 2500);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   MULTI-STATION TAB
+   ───────────────────────────────────────────────────────── */
+async function msUpload() {
+  if (!STATE.msFiles.length) { toast('Add station files first.', 'warn'); return; }
+  setLoading('ms-upload-btn', true);
+  document.getElementById('ms-upload-progress').style.display='block';
+  const fill = document.getElementById('ms-progress-fill'), txt = document.getElementById('ms-progress-text');
+  const fd = new FormData();
+  STATE.msFiles.forEach((f,i) => {
+    fd.append('files', f);
+    const label = document.getElementById(`ms-label-${i}`)?.value || f.name.split('.')[0];
+    fd.append('station_labels', label);
+  });
+  fd.append('provider', document.getElementById('ms-provider').value);
+  try {
+    let prog=0;
+    const iv = setInterval(()=>{ prog=Math.min(prog+15,85); fill.style.width=prog+'%';
+      txt.textContent=`Uploading ${STATE.msFiles.length} station files… ${prog}%`; }, 200);
+    const res = await fetch('/api/multistation_upload', { method:'POST', body:fd });
+    clearInterval(iv); fill.style.width='100%'; txt.textContent='Upload complete!';
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    STATE.batchId = data.batch_id;
+    const sourceColumns = [...new Set(Object.values(data.columns_by_station || {}).flat())];
+    renderColumnMapping(document.getElementById('ms-mapping-grid'), sourceColumns, 'ms-map');
+    document.getElementById('ms-mapping-card').style.display='block';
+    document.getElementById('ms-clean-card').style.display='block';
+    toast(`Uploaded ${data.station_count} stations: ${data.station_names.join(', ')} ✓`);
+  } catch(e) { toast(`Upload failed: ${e.message}`, 'error'); }
+  finally {
+    setLoading('ms-upload-btn', false);
+    setTimeout(()=>{ document.getElementById('ms-upload-progress').style.display='none'; fill.style.width='0%'; }, 2000);
+  }
+}
+
+async function msClean() {
+  if (!STATE.batchId) { toast('Upload stations first.', 'warn'); return; }
+  setLoading('ms-clean-btn', true);
+  document.getElementById('ms-clean-loader').style.display='flex';
+  try {
+    const data = await api('/api/multistation_clean', {
+      batch_id: STATE.batchId,
+      provider: document.getElementById('ms-provider').value,
+      options: {
+        ...STATE.msToggles,
+        column_mapping: getColumnMapping('ms-mapping-grid'),
+        start_date: document.getElementById('ms-start').value || null,
+        end_date:   document.getElementById('ms-end').value   || null,
+      }
+    });
+    const result = document.getElementById('ms-clean-result');
+    result.style.display='block';
+    const errCount = Object.keys(data.errors||{}).length;
+    result.innerHTML = `<div style="color:var(--green);font-size:13px">
+      ✅ Cleaned ${data.cleaned_stations.length} stations: ${data.cleaned_stations.join(', ')}
+      ${errCount?`<br>⚠️ ${errCount} station(s) failed: ${Object.entries(data.errors).map(([k,v])=>`${k}: ${v}`).join('; ')}`:''}  
+    </div>`;
+    // Populate column select with actual cleaned columns
+    const firstPreview = Object.values(data.previews||{})[0];
+    if (firstPreview) {
+      const EXCLUDE = new Set(['datetime','year','month','day','hour','season',
+        'location','lon','lat','altitude','_station','_source_file','AQI',
+        'AQI_category','AQI_color','wind_direction','windspeed','rainfall']);
+      const numCols = firstPreview.columns.filter(c => !EXCLUDE.has(c) &&
+        !['string','object'].includes(typeof firstPreview.preview?.[0]?.[c]));
+      const sel = document.getElementById('ms-col');
+      const preferred = ['pm2.5','pm10','NO2','O3','CO','SO2','CO2','VOC','temperature','RH'];
+      // Sort: preferred columns first, then alphabetical
+      numCols.sort((a,b)=>{
+        const ia = preferred.indexOf(a), ib = preferred.indexOf(b);
+        if (ia>=0 && ib>=0) return ia-ib;
+        if (ia>=0) return -1;
+        if (ib>=0) return 1;
+        return a.localeCompare(b);
+      });
+      sel.innerHTML = numCols.map(c=>`<option value="${c}"${c==='pm2.5'?' selected':''}>${c}</option>`).join('');
+    }
+    document.getElementById('ms-analysis-card').style.display='block';
+    document.getElementById('ms-load-plot-btn').style.display='inline-flex';
+    toast(`All stations cleaned ✓`);
+  } catch(e) { toast(e.message, 'error'); }
+  finally { setLoading('ms-clean-btn', false); document.getElementById('ms-clean-loader').style.display='none'; }
+}
+
+async function runComparative() {
+  if (!STATE.batchId) { toast('Upload and clean stations first.', 'warn'); return; }
+  document.getElementById('comp-loader').style.display='flex';
+  document.getElementById('comp-results').style.display='none';
+  setLoading('comp-run-btn', true);
+  try {
+    const data = await api('/api/comparative', {
+      batch_id: STATE.batchId,
+      column:   document.getElementById('ms-col').value,
+      params: {
+        resample_freq: document.getElementById('ms-freq').value,
+        who_24h: parseFloat(document.getElementById('ms-who24').value) || null,
+        epa_24h: parseFloat(document.getElementById('ms-epa24').value) || null,
+      }
+    });
+    renderComparativeResults(data);
+  } catch(e) { toast(e.message, 'error'); }
+  finally { document.getElementById('comp-loader').style.display='none'; setLoading('comp-run-btn', false); }
+}
+
+async function msLoadMerged() {
+  if (!STATE.batchId) { toast('Upload stations first.', 'warn'); return; }
+  try {
+    const data = await api('/api/multistation_merge', { batch_id: STATE.batchId });
+    STATE.sessionId = data.session_id;
+    document.getElementById('session-badge').style.display='flex';
+    document.getElementById('session-id-display').textContent=data.session_id;
+    enableTabs();
+    onDataUpdated(data, 'Merged station data loaded into the plot dashboard.');
+    switchTab('plots');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+const STATION_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316','#84cc16','#6366f1'];
+
+function renderComparativeResults(r) {
+  const names = r.station_names;
+  const col   = r.column;
+
+  // Rankings
+  document.getElementById('comp-ranking').innerHTML = (r.ranking||[]).map(({station,mean,rank})=>`
+    <div class="stat-card">
+      <div class="comp-rank comp-rank-${rank}">#${rank}</div>
+      <div class="stat-label">${station}</div>
+      <div class="stat-value" style="color:${STATION_COLORS[(rank-1)%STATION_COLORS.length]};font-size:18px">${mean.toFixed(2)}</div>
+      <div class="stat-unit">${col}</div>
+    </div>`).join('');
+
+  // Descriptive table
+  const descKeys = ['n','mean','median','std','min','max','skewness','kurtosis','cv_pct','date_start','date_end'];
+  let tHtml = '<thead><tr><th>Metric</th>' + names.map(n=>`<th>${n}</th>`).join('') + '</tr></thead><tbody>';
+  descKeys.forEach(k => {
+    const row = names.map(n => {
+      const v = r.descriptive?.[n]?.[k];
+      return v===null||v===undefined ? '—' : typeof v==='number' ? v.toFixed(3) : v;
+    });
+    tHtml += `<tr><td style="font-weight:600;color:var(--text3)">${k}</td>${row.map(v=>`<td style="font-family:monospace">${v}</td>`).join('')}</tr>`;
+  });
+  tHtml += '</tbody>';
+  document.getElementById('comp-desc-table').innerHTML = tHtml;
+
+  // Time Series
+  if (r.timeseries) {
+    const traces = names.map((n,i) => ({
+      type:'scatter', mode:'lines', name:n,
+      x: r.timeseries[n]?.dates || [],
+      y: r.timeseries[n]?.values || [],
+      line:{ color:STATION_COLORS[i%STATION_COLORS.length], width:2 }
+    }));
+    plotlyReady(()=>Plotly.react('comp-ts-plot', traces,
+      applyDarkLayout({ title:`${col} — Time Series by Station`, xaxis:{title:'Date'}, yaxis:{title:col}, height:380 }),
+      PLOT_CONFIG));
+  }
+
+  // Diurnal
+  if (r.diurnal) {
+    const traces = names.map((n,i) => ({
+      type:'scatter', mode:'lines+markers', name:n,
+      x: r.diurnal[n]?.hours || [],
+      y: r.diurnal[n]?.mean  || [],
+      line:{ color:STATION_COLORS[i%STATION_COLORS.length], width:2 }
+    }));
+    plotlyReady(()=>Plotly.react('comp-diurnal-plot', traces,
+      applyDarkLayout({ title:'Diurnal Profile', xaxis:{title:'Hour of Day'}, yaxis:{title:`Mean ${col}`}, height:300 }),
+      PLOT_CONFIG));
+  }
+
+  // Monthly
+  if (r.monthly) {
+    const traces = names.map((n,i) => ({
+      type:'bar', name:n,
+      x: r.monthly[n]?.months || [],
+      y: r.monthly[n]?.values || [],
+      marker:{ color:STATION_COLORS[i%STATION_COLORS.length] }
+    }));
+    plotlyReady(()=>Plotly.react('comp-monthly-plot', traces,
+      applyDarkLayout({ title:'Monthly Means', barmode:'group', xaxis:{title:'Month'}, yaxis:{title:`Mean ${col}`}, height:300 }),
+      PLOT_CONFIG));
+  }
+
+  // Seasonal
+  if (r.seasonal) {
+    const seasons = ['DJF','MAM','JJA','SON'];
+    const traces = names.map((n,i) => ({
+      type:'bar', name:n,
+      x: seasons,
+      y: seasons.map(s=>r.seasonal[n]?.[s]||null),
+      marker:{ color:STATION_COLORS[i%STATION_COLORS.length] }
+    }));
+    plotlyReady(()=>Plotly.react('comp-seasonal-plot', traces,
+      applyDarkLayout({ title:'Seasonal Means', barmode:'group', xaxis:{title:'Season'}, yaxis:{title:`Mean ${col}`}, height:300 }),
+      PLOT_CONFIG));
+  }
+
+  // Pairwise correlation heatmap
+  if (r.pairwise_corr?.matrix) {
+    plotlyReady(()=>Plotly.react('comp-corr-plot',
+      [{ type:'heatmap', z:r.pairwise_corr.matrix, x:r.pairwise_corr.names, y:r.pairwise_corr.names,
+         colorscale:'RdBu', zmid:0, text:r.pairwise_corr.matrix.map(row=>row.map(v=>v!=null?v.toFixed(3):'—')),
+         texttemplate:'%{text}', colorbar:{title:'r'} }],
+      applyDarkLayout({ title:'Pairwise Pearson r', height:300 }),
+      PLOT_CONFIG));
+  }
+
+  // Percentile comparison
+  if (r.percentile_comparison) {
+    const pKeys = Object.keys(Object.values(r.percentile_comparison)[0]||{});
+    const traces = names.map((n,i) => ({
+      type:'scatter', mode:'lines+markers', name:n,
+      x: pKeys, y: pKeys.map(k=>r.percentile_comparison[n]?.[k]||null),
+      line:{ color:STATION_COLORS[i%STATION_COLORS.length], width:2 },
+      marker:{ size:7 }
+    }));
+    plotlyReady(()=>Plotly.react('comp-pct-plot', traces,
+      applyDarkLayout({ title:'Percentile Comparison', xaxis:{title:'Percentile'}, yaxis:{title:col}, height:300 }),
+      PLOT_CONFIG));
+  }
+
+  // Exceedance
+  const hasExc = Object.values(r.exceedance||{}).some(e=>Object.keys(e).length>0);
+  if (hasExc) {
+    document.getElementById('comp-exceedance-card').style.display='block';
+    document.getElementById('comp-exceedance-grid').innerHTML = names.flatMap(n => {
+      const exc = r.exceedance[n]||{};
+      return Object.entries(exc).map(([k,v])=>`
+        <div class="stat-card">
+          <div class="stat-label">${n} — ${k.replace(/_/g,' ')}</div>
+          <div class="stat-value" style="color:${typeof v==='number'&&k.includes('pct')&&v>50?'var(--red)':'var(--yellow)'};font-size:18px">
+            ${typeof v==='number'?v.toFixed(1):v}${k.includes('pct')?'%':''}
+          </div>
+        </div>`);
+    }).join('');
+  }
+
+  // ANOVA
+  if (r.anova) {
+    document.getElementById('comp-anova-card').style.display='block';
+    document.getElementById('comp-anova-body').innerHTML = `
+      <div class="grid3" style="margin-top:8px">
+        <div class="stat-card"><div class="stat-label">F Statistic</div>
+          <div class="stat-value">${r.anova.F_statistic}</div></div>
+        <div class="stat-card"><div class="stat-label">p-value</div>
+          <div class="stat-value" style="color:${r.anova.significant?'var(--red)':'var(--green)'}">${r.anova.p_value}</div></div>
+        <div class="stat-card"><div class="stat-label">Result</div>
+          <div class="stat-value" style="font-size:14px;color:${r.anova.significant?'var(--red)':'var(--green)'}">
+            ${r.anova.significant?'Significantly different (p<0.05)':'No significant difference'}</div></div>
+      </div>`;
+  }
+
+  document.getElementById('comp-results').style.display='block';
+  toast('Comparative analysis complete ✓');
+}
+
+async function msExport(fmt) {
+  if (!STATE.batchId) { toast('No batch session.', 'warn'); return; }
+  const res = await fetch('/api/multistation_export', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ batch_id:STATE.batchId, format:fmt })
+  });
+  if (!res.ok) { toast('Export failed', 'error'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`multistation_data.${fmt}`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─────────────────────────────────────────────────────────
+   CLEAN TAB
+   ───────────────────────────────────────────────────────── */
+async function cleanData() {
+  if (!STATE.sessionId) { toast('Upload data first', 'warn'); return; }
+  setLoading('clean-btn', true);
+  try {
+    const data = await api('/api/clean', {
+      session_id: STATE.sessionId,
+      provider:   document.getElementById('clean-provider').value,
+      options: {
+        ...STATE.cleanToggles,
+        column_mapping: {
+          ...getAirnoteMapping(),
+          ...getColumnMapping('batch-mapping-grid'),
+        },
+        start_date: document.getElementById('clean-start').value || null,
+        end_date:   document.getElementById('clean-end').value   || null,
+      }
+    });
+    onDataUpdated(data, 'Data cleaned successfully ✓');
+    document.getElementById('export-card').style.display='block';
+    document.getElementById('cleaned-preview').style.display='block';
+    document.getElementById('clean-rows-badge').textContent=`${data.shape[0].toLocaleString()} rows`;
+    document.getElementById('clean-cols-badge').textContent=`${data.shape[1]} columns`;
+    buildTable('cleaned-table', data.columns, data.preview);
+  } catch(e) { toast(e.message, 'error'); }
+  finally { setLoading('clean-btn', false); }
+}
+
+document.getElementById('clean-provider')?.addEventListener('change', function() {
+  const card = document.getElementById('airnote-mapping-card');
+  if (card) card.style.display = 'block';
+});
+
+async function aggregateData() {
+  if (!STATE.sessionId) return;
+  try {
+    const data = await api('/api/aggregate', { session_id:STATE.sessionId,
+      freq:document.getElementById('agg-freq').value, agg_func:document.getElementById('agg-func').value });
+    onDataUpdated(data, `Aggregated ✓`);
+    buildTable('cleaned-table', data.columns, data.preview);
+    document.getElementById('cleaned-preview').style.display='block';
+    document.getElementById('clean-rows-badge').textContent=`${data.shape[0].toLocaleString()} rows`;
+    document.getElementById('clean-cols-badge').textContent=`${data.shape[1]} columns`;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function interpolateData() {
+  if (!STATE.sessionId) return;
+  try {
+    const lv = document.getElementById('interp-limit').value;
+    const data = await api('/api/interpolate', { session_id:STATE.sessionId,
+      method:document.getElementById('interp-method').value, limit:lv?parseInt(lv):null });
+    onDataUpdated(data, 'Missing values filled ✓');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function removeOutliers() {
+  if (!STATE.sessionId) return;
+  try {
+    const data = await api('/api/remove_outliers', { session_id:STATE.sessionId,
+      column:document.getElementById('out-col').value,
+      method:document.getElementById('out-method').value,
+      threshold:parseFloat(document.getElementById('out-thresh').value) });
+    onDataUpdated(data, `Removed ${data.removed_rows} outlier rows ✓`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function renameColumn() {
+  if (!STATE.sessionId) return;
+  const old=document.getElementById('rename-old').value, nw=document.getElementById('rename-new').value;
+  if (!old||!nw) { toast('Fill both fields', 'warn'); return; }
+  try {
+    const data = await api('/api/columns/rename', { session_id:STATE.sessionId, old_name:old, new_name:nw });
+    onDataUpdated(data, `Renamed '${old}' → '${nw}' ✓`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteColumn() {
+  if (!STATE.sessionId) return;
+  const col = document.getElementById('delete-col').value;
+  if (!col) return;
+  try {
+    const data = await api('/api/columns/delete', { session_id:STATE.sessionId, column:col });
+    onDataUpdated(data, `Deleted column '${col}' ✓`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function addColumn() {
+  if (!STATE.sessionId) return;
+  const name=document.getElementById('add-col-name').value, expr=document.getElementById('add-col-expr').value;
+  if (!name||!expr) { toast('Fill name and expression', 'warn'); return; }
+  try {
+    const data = await api('/api/columns/add', { session_id:STATE.sessionId, column:name, expression:expr });
+    onDataUpdated(data, `Column '${name}' added ✓`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function exportData(fmt) {
+  if (!STATE.sessionId) return;
+  const res = await fetch('/api/export', { method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ session_id:STATE.sessionId, format:fmt }) });
+  if (!res.ok) { toast('Export failed', 'error'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`cleaned_data.${fmt}`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─────────────────────────────────────────────────────────
+   EXPLORE TAB
+   ───────────────────────────────────────────────────────── */
+async function loadStats() {
+  if (!STATE.sessionId) return;
+  document.getElementById('explore-loader').style.display='flex';
+  document.getElementById('explore-content').style.display='none';
+  try {
+    const data = await api('/api/stats', { session_id:STATE.sessionId });
+    // Shape grid
+    document.getElementById('explore-shape-grid').innerHTML = [
+      {label:'Rows',    value:STATE.shape[0].toLocaleString(), color:'var(--blue)'},
+      {label:'Columns', value:STATE.shape[1], color:'var(--purple)'},
+      {label:'Cleaned', value:STATE.isCleaned?'Yes':'No', color:STATE.isCleaned?'var(--green)':'var(--red)'},
+      {label:'Provider',value:document.getElementById('clean-provider')?.value||'—', color:'var(--teal)'},
+    ].map(s=>`<div class="stat-card"><div class="stat-label">${s.label}</div>
+      <div class="stat-value" style="color:${s.color};font-size:18px">${s.value}</div></div>`).join('');
+
+    // Missing
+    const mp = data.missing_pct;
+    const topMissing = Object.entries(mp).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,20);
+    document.getElementById('missing-grid').innerHTML = topMissing.length ?
+      topMissing.map(([col,pct])=>`
+        <div class="missing-card">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis">${col}</div>
+          <div class="missing-pct" style="color:${pct>50?'var(--red)':pct>20?'var(--yellow)':'var(--green)'}">${pct}%</div>
+          <div style="font-size:11px;color:var(--text4)">missing</div>
+          <div class="missing-bar" style="background:${pct>50?'var(--red)':pct>20?'var(--yellow)':'var(--green)'};width:${pct}%"></div>
+        </div>`).join('') :
+      '<div style="color:var(--green);font-size:13px">✅ No missing values</div>';
+
+    // Descriptive table
+    const desc = data.describe;
+    const statKeys = Object.keys(desc);
+    const numCols  = STATE.columns.filter(c => desc[statKeys[0]]?.[c] !== undefined);
+    if (numCols.length) {
+      let tHtml = '<thead><tr><th>Stat</th>' + numCols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+      statKeys.forEach(k => {
+        tHtml += `<tr><td style="font-weight:600;color:var(--text3)">${k}</td>` +
+          numCols.map(c => {
+            const v = desc[k][c];
+            return `<td style="font-family:monospace">${v===null?'—':typeof v==='number'?v.toFixed(3):v}</td>`;
+          }).join('') + '</tr>';
+      });
+      tHtml += '</tbody>';
+      document.getElementById('desc-table').innerHTML = tHtml;
+    }
+
+    buildColumnsOverview(STATE.columns);
+    document.getElementById('explore-loader').style.display='none';
+    document.getElementById('explore-content').style.display='block';
+  } catch(e) { toast(e.message,'error'); document.getElementById('explore-loader').style.display='none'; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   PLOTS TAB
+   ───────────────────────────────────────────────────────── */
+function updatePlotControls() {
+  const t = document.getElementById('plot-type').value;
+  const multiTypes   = ['timeseries','area','correlation','diurnal','monthly','seasonal_box','radar','pm_size_dist'];
+  const singleTypes  = ['boxplot','histogram','calendar','time_of_week','aqi_bar','spatial','violin','exceedance','nc_timeseries','co2_met'];
+  const xyTypes      = ['scatter','bubble'];
+  document.getElementById('plot-ctrl-multi').style.display         = multiTypes.includes(t)  ? 'block' : 'none';
+  document.getElementById('plot-ctrl-single').style.display        = singleTypes.includes(t) ? 'block' : 'none';
+  document.getElementById('plot-ctrl-xy').style.display            = xyTypes.includes(t)     ? 'block' : 'none';
+  document.getElementById('plot-ctrl-wind').style.display          = t === 'windrose'         ? 'block' : 'none';
+  // New controls
+  document.getElementById('plot-ctrl-calendar').style.display      = t === 'calendar'         ? 'block' : 'none';
+  document.getElementById('plot-ctrl-boxgroup').style.display      = t === 'boxplot'          ? 'block' : 'none';
+  document.getElementById('plot-ctrl-bins').style.display          = t === 'histogram'        ? 'block' : 'none';
+  const comparisonTypes = ['timeseries','area','boxplot','violin','histogram','scatter','bubble'];
+  document.getElementById('plot-ctrl-comparison').style.display = comparisonTypes.includes(t) ? 'block' : 'none';
+  // Bubble size selector
+  const bsg = document.getElementById('bubble-size-group');
+  if (bsg) bsg.style.display = t === 'bubble' ? 'block' : 'none';
+  // Move colour-by into xy control block for scatter (already there via plot-color-col)
+  // For scatter/bubble, the xy block already has a colour-by select (plot-color-col)
+}
+
+/* Populate the calendar year selector from the cleaned data */
+function refreshCalendarYears() {
+  const sel = document.getElementById('plot-cal-year');
+  if (!sel) return;
+  // Keep first "All years" option, then add years present in data
+  const yearCol = STATE.columns.includes('year') ? 'year' : null;
+  // We'll use the preview rows if available; otherwise just clear extras
+  sel.innerHTML = '<option value="">All years (merged)</option>';
+  if (STATE._yearList && STATE._yearList.length) {
+    STATE._yearList.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+/* Populate hue and facet selectors with all columns (numeric + categorical). */
+function refreshScatterColorBy() {
+  const colorCol = document.getElementById('plot-color-col');
+  const facetCol = document.getElementById('plot-facet-col');
+  const allCols = STATE.columns || [];
+  const options = '<option value="">None</option>' +
+    allCols.map(c=>`<option value="${c}">${c}</option>`).join('');
+  if (colorCol) colorCol.innerHTML = options;
+  if (facetCol) facetCol.innerHTML = options;
+}
+
+async function generatePlot() {
+  if (!STATE.sessionId) { toast('Upload data first', 'warn'); return; }
+  setLoading('plot-btn', true);
+  document.getElementById('plot-loader').style.display='flex';
+  document.getElementById('plot-area').innerHTML='';
+  try {
+    const t = document.getElementById('plot-type').value;
+    const title = document.getElementById('plot-title').value;
+    let params = { title };
+
+    // Multi-column plots
+    if (['timeseries','area','correlation','diurnal','monthly','seasonal_box'].includes(t))
+      params.columns = getSelectedChips();
+
+    // Single-column plots
+    if (['boxplot','histogram','calendar','time_of_week','aqi_bar','spatial','violin','exceedance','nc_timeseries','co2_met'].includes(t))
+      params.column = document.getElementById('plot-single-col').value;
+
+    // Scatter / Bubble — xy + colour-by
+    if (t==='scatter' || t==='bubble') {
+      params.x_col     = document.getElementById('plot-x-col').value;
+      params.y_col     = document.getElementById('plot-y-col').value;
+      if (t === 'bubble') params.size_col = document.getElementById('plot-size-col')?.value || 'RH';
+    }
+
+    if (['timeseries','area','boxplot','violin','histogram','scatter','bubble'].includes(t)) {
+      params.color_col = document.getElementById('plot-color-col').value || null;
+      params.facet_col = document.getElementById('plot-facet-col').value || null;
+      params.color_palette = document.getElementById('plot-hue-palette').value || 'Plotly';
+    }
+
+    // Wind rose
+    if (t==='windrose') {
+      params.ws_col = document.getElementById('plot-ws-col').value;
+      params.wd_col = document.getElementById('plot-wd-col').value;
+    }
+
+    // Calendar-specific parameters
+    if (t === 'calendar') {
+      const yr = document.getElementById('plot-cal-year')?.value;
+      if (yr) params.year = parseInt(yr);
+      const cmap = document.getElementById('plot-cal-cmap')?.value || 'YlOrRd';
+      const rev  = document.getElementById('plot-cal-reverse')?.checked || false;
+      params.colorscale = rev ? cmap + '_r' : cmap;
+    }
+
+    // Box plot group-by
+    if (t === 'boxplot') {
+      params.group_by = document.getElementById('plot-box-group')?.value || 'season';
+    }
+
+    // Histogram bins
+    if (t === 'histogram') {
+      params.bins = parseInt(document.getElementById('plot-bins')?.value || '40');
+    }
+
+    const data = await api('/api/plot', { session_id:STATE.sessionId, plot_type:t, params });
+    if (!data.plot) throw new Error('No plot data returned');
+    const plotArea = document.getElementById('plot-area');
+    plotArea.innerHTML = '<div id="live-plot" style="min-height:400px"></div>';
+    const fig = JSON.parse(data.plot);
+    const themeLayout = STATE.theme==='light' ? getLightLayout() : getDarkLayout();
+    fig.layout = Object.assign({}, themeLayout, fig.layout);
+    plotlyReady(() => Plotly.react('live-plot', fig.data, fig.layout, PLOT_CONFIG));
+    STATE._lastPlot = { fig, type:t, title };
+  } catch(e) { toast(e.message, 'error'); }
+  finally { setLoading('plot-btn', false); document.getElementById('plot-loader').style.display='none'; }
+}
+
+
+function savePlot() {
+  if (!STATE._lastPlot) { toast('Generate a plot first', 'warn'); return; }
+  const { fig, type, title } = STATE._lastPlot;
+  const id = `gallery-plot-${STATE.galleryCount++}`;
+  const section = document.getElementById('gallery-section'), grid = document.getElementById('gallery-grid');
+  section.style.display='block';
+  const card = document.createElement('div');
+  card.className='card'; card.style.padding='8px';
+  card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-size:12px;color:var(--text3)">${title||type}</span>
+    <button class="btn btn-ghost btn-sm" onclick="this.closest('.card').remove();checkGallery()">✕</button></div>
+    <div id="${id}" style="min-height:280px"></div>`;
+  grid.appendChild(card);
+  const themeLayout = STATE.theme==='light' ? getLightLayout() : getDarkLayout();
+  const layout = Object.assign({}, themeLayout, fig.layout, { height:280, margin:{t:30,r:10,b:40,l:50} });
+  plotlyReady(()=>Plotly.react(id, fig.data, layout, PLOT_CONFIG));
+  toast('Plot saved to gallery ✓');
+}
+
+function checkGallery() {
+  if (!document.querySelector('#gallery-grid .card'))
+    document.getElementById('gallery-section').style.display='none';
+}
+
+/* ─────────────────────────────────────────────────────────
+   MAP TAB
+   ───────────────────────────────────────────────────────── */
+const TILE_URLS = {
+  osm:  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  light:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  topo: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+};
+
+function paramColor(val, param) {
+  if (val==null) return '#60a5fa';
+  if (param==='AQI'||param==='pm2.5') {
+    if (val<=50)  return '#00e400';
+    if (val<=100) return '#ffff00';
+    if (val<=150) return '#ff7e00';
+    if (val<=200) return '#ff0000';
+    if (val<=300) return '#8f3f97';
+    return '#7e0023';
+  }
+  // Generic gradient for other params
+  return `hsl(${Math.max(0,240-val*2)},70%,55%)`;
+}
+
+function initMap() {
+  if (STATE.mapInstance) return loadMapData();
+  const map = L.map('map').setView([5.55,-0.2], 10);
+  STATE.mapTileLayer = L.tileLayer(TILE_URLS.osm, {attribution:'© OpenStreetMap'}).addTo(map);
+  STATE.mapInstance = map;
+  loadMapData();
+}
+
+function changeMapTile() {
+  if (!STATE.mapInstance) return;
+  const style = document.getElementById('map-style').value;
+  if (STATE.mapTileLayer) STATE.mapInstance.removeLayer(STATE.mapTileLayer);
+  STATE.mapTileLayer = L.tileLayer(TILE_URLS[style], {attribution:'© OpenStreetMap'}).addTo(STATE.mapInstance);
+}
+
+function reloadMapData() { if (STATE.sessionId) loadMapData(); }
+
+async function loadMapData() {
+  if (!STATE.sessionId||!STATE.mapInstance) return;
+  document.getElementById('map-pt-count').textContent='Loading…';
+  try {
+    const data = await api('/api/map_data', {session_id:STATE.sessionId});
+    STATE._mapData = data.data;
+    renderMapLayers(data.data);
+    document.getElementById('map-pt-count').textContent=`${data.data.length.toLocaleString()} data points`;
+    renderMapStats(data.data);
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function renderMapLayers(pts) {
+  const map = STATE.mapInstance;
+  STATE.mapMarkers.forEach(m=>map.removeLayer(m)); STATE.mapMarkers=[];
+  if (STATE.mapHeatLayer) { map.removeLayer(STATE.mapHeatLayer); STATE.mapHeatLayer=null; }
+  const valid = pts.filter(p=>p.lat&&p.lon);
+  if (!valid.length) return;
+  const lats=valid.map(p=>p.lat), lons=valid.map(p=>p.lon);
+  map.fitBounds([[Math.min(...lats),Math.min(...lons)],[Math.max(...lats),Math.max(...lons)]],{padding:[40,40]});
+  const colorParam = document.getElementById('map-color-param')?.value || 'pm2.5';
+  if (STATE.showMarkers) {
+    valid.forEach(pt => {
+      const val = pt[colorParam];
+      const color = paramColor(val, colorParam);
+      const icon = L.divIcon({ className:'',
+        html:`<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.6);box-shadow:0 0 6px ${color}88"></div>`,
+        iconSize:[12,12], iconAnchor:[6,6] });
+      const m = L.marker([pt.lat,pt.lon],{icon}).addTo(map);
+      m.bindPopup(`<div style="min-width:180px;font-size:12px;font-family:monospace">
+        <b>${pt.location||'—'}</b><br/>
+        ${colorParam}: <b style="color:${color}">${val!=null?val.toFixed(2):'—'}</b><br/>
+        ${pt['pm2.5']!=null&&colorParam!=='pm2.5'?`PM2.5: ${pt['pm2.5'].toFixed(2)} μg/m³<br/>`:''}
+        ${pt.temperature!=null?`Temp: ${pt.temperature.toFixed(1)} °C<br/>`:''}
+        ${pt.RH!=null?`RH: ${pt.RH.toFixed(1)}%<br/>`:''}
+        Lat/Lon: ${pt.lat.toFixed(5)}, ${pt.lon.toFixed(5)}<br/>
+        ${pt.datetime?`Time: ${pt.datetime}`:''}
+      </div>`);
+      STATE.mapMarkers.push(m);
+    });
+  }
+  if (STATE.showHeat && L.heatLayer) {
+    const heatData = valid.map(p=>[p.lat,p.lon,Math.min(((p[colorParam]||0)/200),1)]);
+    STATE.mapHeatLayer = L.heatLayer(heatData, { radius:25,blur:20,maxZoom:13,
+      gradient:{0.2:'green',0.5:'yellow',0.75:'orange',1:'red'} }).addTo(map);
+  }
+}
+
+function renderMapStats(pts) {
+  const vals = pts.map(p=>p['pm2.5']).filter(v=>v!=null);
+  const locs  = [...new Set(pts.map(p=>p.location).filter(Boolean))];
+  const el = document.getElementById('map-stats'); el.style.display='grid';
+  el.innerHTML = [
+    {label:'Total Points', value:pts.length,                                     color:'var(--blue)'},
+    {label:'Locations',    value:locs.length,                                    color:'var(--purple)'},
+    {label:'Avg PM2.5',    value:vals.length?(vals.reduce((a,b)=>a+b)/vals.length).toFixed(1):'-', color:'var(--yellow)', unit:'μg/m³'},
+    {label:'Max PM2.5',    value:vals.length?Math.max(...vals).toFixed(1):'-',   color:'var(--red)', unit:'μg/m³'},
+  ].map(s=>`<div class="stat-card"><div class="stat-label">${s.label}</div>
+    <div class="stat-value" style="color:${s.color}">${s.value}</div>
+    ${s.unit?`<div class="stat-unit">${s.unit}</div>`:''}</div>`).join('');
+}
+
+/* ─────────────────────────────────────────────────────────
+   EXTREME TAB
+   ───────────────────────────────────────────────────────── */
+function getGuidelineOverrides(prefix) {
+  const periods = ['24h','annual','8h','1h'];
+  return Object.fromEntries(periods.map(period => {
+    const value = document.getElementById(`ext-${prefix}-${period}`)?.value.trim();
+    return [period, value === '' ? null : parseFloat(value)];
+  }).filter(([, value]) => value !== null && Number.isFinite(value) && value >= 0));
+}
+
+async function runExtreme() {
+  if (!STATE.sessionId) { toast('Upload data first','warn'); return; }
+  document.getElementById('ext-loader').style.display='flex';
+  document.getElementById('ext-results').style.display='none';
+  try {
+    const data = await api('/api/extreme', {
+      session_id:STATE.sessionId,
+      column:document.getElementById('ext-col').value,
+      params:{ block:document.getElementById('ext-block').value,
+        who_standard:STATE.extremeToggles.who, epa_standard:STATE.extremeToggles.epa,
+        who_overrides:getGuidelineOverrides('who'),
+        epa_overrides:getGuidelineOverrides('epa'),
+        top_n:parseInt(document.getElementById('ext-topn').value)||10,
+        bins:parseInt(document.getElementById('ext-bins').value)||40,
+        percentiles:[50,75,90,95,99,99.9] }
+    });
+    renderExtremeResults(data);
+  } catch(e) { toast(e.message,'error'); }
+  finally { document.getElementById('ext-loader').style.display='none'; }
+}
+
+function renderExtremeResults(r) {
+  const col = r.column;
+  const desc = r.descriptive;
+  document.getElementById('ext-desc-grid').innerHTML = [
+    ['Count',desc.count,''],['Mean',desc.mean,'μg/m³'],['Median',desc.median,'μg/m³'],
+    ['Std Dev',desc.std,'μg/m³'],['Min',desc.min,'μg/m³'],['Max',desc.max,'μg/m³'],
+    ['Skewness',desc.skewness,''],['Kurtosis',desc.kurtosis,''],
+  ].map(([label,value,unit])=>`<div class="stat-card">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value" style="color:${label==='Max'?'var(--red)':label==='Mean'?'var(--blue)':'var(--text2)'}">
+      ${typeof value==='number'?value.toFixed(3):value}</div>
+    ${unit?`<div class="stat-unit">${unit}</div>`:''}</div>`).join('');
+
+  // WHO
+  const w=r.who||{};
+  document.getElementById('ext-who-body').innerHTML=Object.keys(w).length?`
+    ${w['24h_standard']!=null?`<div style="color:var(--text3);font-size:12px;margin-bottom:6px">24h: ${w['24h_standard']} μg/m³</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div style="flex:1;background:var(--bg4);border-radius:20px;height:8px;overflow:hidden">
+          <div style="width:${Math.min(w['24h_exceed_pct']||0,100)}%;height:100%;background:${(w['24h_exceed_pct']||0)>50?'var(--red)':'var(--yellow)'};border-radius:20px"></div>
+        </div><span style="font-weight:700;color:var(--text)">${w['24h_exceed_pct']}%</span>
+      </div><div style="font-size:11px;color:var(--text4)">${w['24h_exceed_n']} exceedance days</div>`:''}
+    ${w.annual_standard!=null?`<div style="margin-top:10px;font-size:12px;color:var(--text3)">Annual: ${w.annual_standard} μg/m³</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--text)">${(w.annual_mean||0).toFixed(2)}</span>
+        <span class="badge" style="background:${w.annual_exceed?'#ef444422':'#10b98122'};color:${w.annual_exceed?'var(--red)':'var(--green)'}">
+          ${w.annual_exceed?'EXCEEDS':'COMPLIANT'}</span></div>`:''}
+    ${w['8h_standard']!=null?`<div style="margin-top:10px;color:var(--text3);font-size:12px">8h: ${w['8h_standard']} μg/m³</div>`:''}
+    ${w['1h_standard']!=null?`<div style="margin-top:10px;color:var(--text3);font-size:12px">1h: ${w['1h_standard']} μg/m³</div>`:''}
+  `:'<div style="color:var(--text4);font-size:12px">No WHO standard available</div>';
+
+  // EPA
+  const ep=r.epa||{};
+  document.getElementById('ext-epa-body').innerHTML=Object.keys(ep).length?`
+    ${ep['24h_standard']!=null?`<div style="color:var(--text3);font-size:12px;margin-bottom:6px">24h: ${ep['24h_standard']} μg/m³</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div style="flex:1;background:var(--bg4);border-radius:20px;height:8px;overflow:hidden">
+          <div style="width:${Math.min(ep['24h_exceed_pct']||0,100)}%;height:100%;background:${(ep['24h_exceed_pct']||0)>50?'var(--red)':'var(--yellow)'};border-radius:20px"></div>
+        </div><span style="font-weight:700;color:var(--text)">${ep['24h_exceed_pct']}%</span>
+      </div><div style="font-size:11px;color:var(--text4)">${ep['24h_exceed_n']} exceedance days</div>`:''}
+    ${ep.annual_standard!=null?`<div style="margin-top:10px;font-size:12px;color:var(--text3)">Annual: ${ep.annual_standard} μg/m³</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--text)">${(ep.annual_mean||0).toFixed(2)}</span>
+        <span class="badge" style="background:${ep.annual_exceed?'#ef444422':'#10b98122'};color:${ep.annual_exceed?'var(--red)':'var(--green)'}">
+          ${ep.annual_exceed?'EXCEEDS':'COMPLIANT'}</span></div>`:''}
+    ${ep['8h_standard']!=null?`<div style="margin-top:10px;color:var(--text3);font-size:12px">8h: ${ep['8h_standard']} μg/m³</div>`:''}
+    ${ep['1h_standard']!=null?`<div style="margin-top:10px;color:var(--text3);font-size:12px">1h: ${ep['1h_standard']} μg/m³</div>`:''}
+  `:'<div style="color:var(--text4);font-size:12px">No EPA standard available</div>';
+
+  // Return levels
+  const rl=r.return_levels||{};
+  document.getElementById('ext-rl-grid').innerHTML=Object.entries(rl).map(([p,v])=>`
+    <div class="stat-card"><div class="stat-label">${p} Return</div>
+      <div class="stat-value" style="color:var(--pink)">${v.toFixed(2)}</div>
+      <div class="stat-unit">μg/m³</div></div>`).join('');
+
+  // Plots
+  if (r.histogram?.counts) {
+    const binMids=r.histogram.bin_edges.slice(0,-1).map((v,i)=>((v+r.histogram.bin_edges[i+1])/2).toFixed(2));
+    plotlyReady(()=>Plotly.react('ext-hist-plot',
+      [{type:'bar',x:binMids,y:r.histogram.counts,marker:{color:'var(--blue)',opacity:.8}}],
+      applyDarkLayout({title:`Distribution — ${col}`,xaxis:{title:col},yaxis:{title:'Count'},height:300}),PLOT_CONFIG));
+  }
+  if (r.percentiles) {
+    const pK=Object.keys(r.percentiles), pV=Object.values(r.percentiles);
+    plotlyReady(()=>Plotly.react('ext-pct-plot',
+      [{type:'bar',x:pK,y:pV,marker:{color:pK.map((_,i)=>`hsl(${210-i/pK.length*150},70%,55%)`)}}],
+      applyDarkLayout({title:'Percentiles',xaxis:{title:'Percentile'},yaxis:{title:col},height:300}),PLOT_CONFIG));
+  }
+  if (r.block_maxima?.values?.length) {
+    plotlyReady(()=>Plotly.react('ext-bm-plot',
+      [{type:'scatter',mode:'lines+markers',x:r.block_maxima.dates,y:r.block_maxima.values,
+        line:{color:'var(--yellow)',width:2},marker:{size:6,color:'var(--yellow)'}}],
+      applyDarkLayout({title:'Block Maxima',xaxis:{title:'Date'},yaxis:{title:col},height:300}),PLOT_CONFIG));
+  }
+  if (Object.keys(rl).length) {
+    const rlX=Object.keys(rl).map(k=>parseInt(k)), rlY=Object.values(rl);
+    plotlyReady(()=>Plotly.react('ext-rl-plot',
+      [{type:'scatter',mode:'lines+markers',x:rlX,y:rlY,
+        line:{color:'var(--pink)',width:2},marker:{size:8,color:'var(--pink)'}}],
+      applyDarkLayout({title:'Return Levels',xaxis:{title:'Return Period (yr)',type:'log'},yaxis:{title:`${col}`},height:300}),PLOT_CONFIG));
+  }
+  if (r.top_events?.length) {
+    const evCols=['Rank',...Object.keys(r.top_events[0])];
+    let evHtml='<thead><tr>'+evCols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+    r.top_events.forEach((row,i)=>{
+      evHtml+=`<tr><td style="color:var(--yellow);font-weight:700">#${i+1}</td>`+
+        Object.values(row).map(v=>`<td style="font-family:monospace">${v==null?'—':typeof v==='number'?v.toFixed(4):v}</td>`).join('')+'</tr>';
+    });
+    evHtml+='</tbody>';
+    document.getElementById('ext-events-table').innerHTML=evHtml;
+  }
+  document.getElementById('ext-results').style.display='block';
+}
+
+/* ─────────────────────────────────────────────────────────
+   MODEL EVAL TAB
+   ───────────────────────────────────────────────────────── */
+function guidelineValue(id) {
+  const value = document.getElementById(id)?.value.trim();
+  return value === '' ? null : parseFloat(value);
+}
+
+async function runCompliance() {
+  if (!STATE.sessionId) { toast('Upload data first','warn'); return; }
+  const column = document.getElementById('compliance-col').value;
+  if (!column) { toast('Select a sensor reading','warn'); return; }
+  document.getElementById('compliance-loader').style.display='flex';
+  document.getElementById('compliance-results').style.display='none';
+  try {
+    const data = await api('/api/compliance', {session_id:STATE.sessionId, column,
+      params:{who_overrides:{'24h':guidelineValue('compliance-who-24h'), annual:guidelineValue('compliance-who-annual'), '8h':guidelineValue('compliance-who-8h'), '1h':guidelineValue('compliance-who-1h')},
+        epa_overrides:{'24h':guidelineValue('compliance-epa-24h'), annual:guidelineValue('compliance-epa-annual'), '8h':guidelineValue('compliance-epa-8h'), '1h':guidelineValue('compliance-epa-1h')}}});
+    renderCompliance(data);
+  } catch(e) { toast(e.message,'error'); }
+  finally { document.getElementById('compliance-loader').style.display='none'; }
+}
+
+function renderCompliance(data) {
+  document.getElementById('compliance-summary').innerHTML = [
+    ['Valid readings',data.readings,'var(--blue)'],['Missing',`${data.missing_percent}%`,'var(--yellow)'],
+    ['Sampling interval',data.sampling_interval_hours?`${data.sampling_interval_hours} h`:'Unknown','var(--purple)'],
+    ['Period',`${data.first_reading.slice(0,10)} to ${data.last_reading.slice(0,10)}`,'var(--teal)']
+  ].map(([label,value,color])=>`<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="font-size:16px;color:${color}">${value}</div></div>`).join('');
+  document.getElementById('compliance-standards').innerHTML = data.standards.length ? data.standards.map(item => `
+    <div class="card" style="border-top:3px solid ${item.exceedance_count?'var(--red)':'var(--green)'}">
+      <div class="card-title">${item.authority} · ${item.period}</div>
+      <div class="stat-value" style="color:${item.exceedance_count?'var(--red)':'var(--green)'}">${item.exceedance_percent}%</div>
+      <div style="color:var(--text3);font-size:12px;margin-top:6px">${item.exceedance_count} exceedances · threshold ${item.threshold}</div>
+      <div style="color:var(--text4);font-size:11px;margin-top:6px">${item.episode_count} episode(s)${item.estimated_exceedance_hours!=null?` · about ${item.estimated_exceedance_hours} hours`:''}</div>
+    </div>`).join('') : '<div class="card">No configured standard is available for this reading.</div>';
+  document.getElementById('compliance-recommendations').innerHTML = data.recommendations.map(item => `
+    <div style="border-left:3px solid ${item.priority==='high'?'var(--red)':item.priority==='medium'?'var(--yellow)':'var(--green)'};padding:10px 12px;margin-bottom:10px">
+      <div style="font-weight:700;color:var(--text);margin-bottom:4px">${item.title}</div><div style="color:var(--text2);font-size:12px;line-height:1.5">${item.text}</div>
+    </div>`).join('');
+  const dailyTraces = data.standards.flatMap((item, index) => {
+    const color = ['#ef4444','#3b82f6','#f59e0b','#10b981'][index % 4];
+    const rows = item.daily_exceedances || [];
+    return [{type:'bar', x:rows.map(row=>row.date), y:rows.map(row=>row.value),
+      marker:{color:rows.map(row=>row.exceeded?color:'#64748b')}, name:`${item.authority} ${item.period}`}];
+  });
+  const hourlyTraces = data.standards.flatMap((item, index) => {
+    const color = ['#ef4444','#3b82f6','#f59e0b','#10b981'][index % 4];
+    const rows = item.hourly_exceedances || [];
+    return [{type:'scatter', mode:'lines+markers', x:rows.map(row=>row.datetime), y:rows.map(row=>row.value),
+      line:{color,width:2}, marker:{color:rows.map(row=>row.exceeded?color:'#64748b'),size:5}, name:`${item.authority} ${item.period}`}];
+  });
+  const thresholdShapes = data.standards.map((item, index) => ({type:'line', xref:'paper', x0:0, x1:1,
+    y0:item.threshold, y1:item.threshold, line:{color:['#ef4444','#3b82f6','#f59e0b','#10b981'][index % 4],dash:'dash',width:1}}));
+  plotlyReady(()=>Plotly.react('compliance-daily-plot', dailyTraces,
+    applyDarkLayout({title:'Daily maximum readings',xaxis:{title:'Day'},yaxis:{title:data.column},height:340,
+      barmode:'group',shapes:thresholdShapes}),PLOT_CONFIG));
+  plotlyReady(()=>Plotly.react('compliance-hourly-plot', hourlyTraces,
+    applyDarkLayout({title:'Hourly readings and exceedances',xaxis:{title:'Time'},yaxis:{title:data.column},height:340,
+      shapes:thresholdShapes}),PLOT_CONFIG));
+  document.getElementById('compliance-results').style.display='block';
+}
+
+document.getElementById('ml-model')?.addEventListener('change', function() {
+  document.getElementById('ml-z-wrap').style.display = this.value === 'anomaly' ? 'block' : 'none';
+});
+
+async function runMachineLearning() {
+  if (!STATE.sessionId) { toast('Upload data first','warn'); return; }
+  const target=document.getElementById('ml-target').value;
+  if (!target) { toast('Select a target reading','warn'); return; }
+  document.getElementById('ml-loader').style.display='flex';
+  document.getElementById('ml-results').style.display='none';
+  try {
+    const model=document.getElementById('ml-model').value;
+    const features=[...document.querySelectorAll('.ml-feature:checked')].map(el=>el.value);
+    const data=await api('/api/machine_learning',{session_id:STATE.sessionId,target,model,
+      params:{z_score:parseFloat(document.getElementById('ml-z').value)||3, features}});
+    renderMachineLearning(data);
+  } catch(e) { toast(e.message,'error'); }
+  finally { document.getElementById('ml-loader').style.display='none'; }
+}
+
+function renderMachineLearning(data) {
+  const summary=[];
+  if (data.slope_per_day!=null) summary.push(['Trend/day',data.slope_per_day,'var(--blue)']);
+  if (data.holdout) { summary.push(['Holdout RMSE',data.holdout.rmse,'var(--yellow)']); summary.push(['Holdout n',data.holdout.n,'var(--purple)']); }
+  if (data.metrics) { summary.push(['Baseline RMSE',data.metrics.rmse,'var(--yellow)']); summary.push(['Baseline MAE',data.metrics.mae,'var(--blue)']); }
+  if (data.anomaly_count!=null) summary.push(['Anomalies',data.anomaly_count,'var(--red)']);
+  document.getElementById('ml-summary').innerHTML=summary.map(([label,value,color])=>`<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="color:${color}">${typeof value==='number'?value.toFixed(3):value}</div></div>`).join('');
+  document.getElementById('ml-message').textContent=data.message;
+  const detail=data.feature_importance ? '<strong>Feature importance</strong><br>' + Object.entries(data.feature_importance).sort((a,b)=>b[1]-a[1]).map(([name,value])=>`${name}: ${value}`).join('<br>') : data.anomalies ? data.anomalies.slice(0,20).map(x=>`${x.datetime}: ${x.value}`).join('<br>') : data.hourly_baseline ? Object.entries(data.hourly_baseline).map(([hour,value])=>`${hour}:00 — ${value}`).join('<br>') : `Intercept: ${data.intercept}<br>Holdout bias: ${data.holdout?.bias}`;
+  document.getElementById('ml-detail').innerHTML=detail;
+  if (data.holdout_series?.length) {
+    plotlyReady(()=>Plotly.react('ml-main-plot', [
+      {type:'scatter',mode:'lines+markers',x:data.holdout_series.map(row=>row.datetime),y:data.holdout_series.map(row=>row.actual),name:'Actual',line:{color:'#3b82f6'}},
+      {type:'scatter',mode:'lines+markers',x:data.holdout_series.map(row=>row.datetime),y:data.holdout_series.map(row=>row.predicted),name:'Predicted',line:{color:'#f59e0b',dash:'dash'}}
+    ], applyDarkLayout({title:`Holdout: ${data.target}`,xaxis:{title:'Time'},yaxis:{title:data.target},height:360}),PLOT_CONFIG));
+  } else if (data.seasonal_series?.length) {
+    plotlyReady(()=>Plotly.react('ml-main-plot', [{type:'bar',x:data.seasonal_series.map(row=>row.hour),y:data.seasonal_series.map(row=>row.value),marker:{color:'#06b6d4'}}],
+      applyDarkLayout({title:`Hourly seasonal baseline: ${data.target}`,xaxis:{title:'Hour of day'},yaxis:{title:data.target},height:360}),PLOT_CONFIG));
+  } else if (data.anomaly_series?.length) {
+    const normal=data.anomaly_series.filter(row=>!row.is_anomaly), anomalies=data.anomaly_series.filter(row=>row.is_anomaly);
+    plotlyReady(()=>Plotly.react('ml-main-plot', [
+      {type:'scatter',mode:'lines',x:normal.map(row=>row.datetime),y:normal.map(row=>row.value),name:'Readings',line:{color:'#3b82f6'}},
+      {type:'scatter',mode:'markers',x:anomalies.map(row=>row.datetime),y:anomalies.map(row=>row.value),name:'Anomalies',marker:{color:'#ef4444',size:9}}
+    ], applyDarkLayout({title:`Anomaly detection: ${data.target}`,xaxis:{title:'Time'},yaxis:{title:data.target},height:360}),PLOT_CONFIG));
+  }
+  document.getElementById('ml-results').style.display='block';
+}
+
+const METRIC_INFO = {
+  MB:   {label:'Mean Bias',          unit:'',  good:v=>Math.abs(v)<5,  desc:'Systematic over/under-estimation'},
+  NMB:  {label:'Norm. Mean Bias',    unit:'%', good:v=>Math.abs(v)<10, desc:'NMB < ±10% = good'},
+  RMSE: {label:'RMSE',               unit:'',  good:v=>v<15,           desc:'Root Mean Square Error'},
+  NRMSE:{label:'Norm. RMSE',         unit:'%', good:v=>v<30,           desc:'NRMSE < 30% = acceptable'},
+  MAE:  {label:'MAE',                unit:'',  good:()=>true,          desc:'Mean Absolute Error'},
+  R:    {label:'Correlation (r)',     unit:'',  good:v=>v>0.8,          desc:'Pearson correlation'},
+  R2:   {label:'R²',                 unit:'',  good:v=>v>0.64,         desc:'Coefficient of determination'},
+  IOA:  {label:'Index of Agreement', unit:'',  good:v=>v>0.7,          desc:'Willmott IOA; 1 = perfect'},
+  FAC2: {label:'FAC2',               unit:'%', good:v=>v>75,           desc:'% within factor of 2'},
+  PBIAS:{label:'Percent Bias',       unit:'%', good:v=>Math.abs(v)<15, desc:'PBIAS < ±15% = good'},
+  KGE:  {label:'KGE',                unit:'',  good:v=>v>0.75,         desc:'Kling-Gupta Efficiency'},
+};
+
+async function runModelEval() {
+  if (!STATE.sessionId) { toast('Upload data first','warn'); return; }
+  const obsCol=document.getElementById('eval-obs-col').value;
+  const modCol=document.getElementById('eval-mod-col').value;
+  if (!obsCol||!modCol) { toast('Select both columns','warn'); return; }
+  if (obsCol===modCol)  { toast('Select different columns','warn'); return; }
+  document.getElementById('eval-loader').style.display='flex';
+  document.getElementById('eval-results').style.display='none';
+  try {
+    const data = await api('/api/model_eval', { session_id:STATE.sessionId,
+      obs_col:obsCol, mod_col:modCol, params:{max_scatter_pts:2000} });
+    renderEvalResults(data, obsCol, modCol);
+  } catch(e) { toast(e.message,'error'); }
+  finally { document.getElementById('eval-loader').style.display='none'; }
+}
+
+function renderEvalResults(r, obsCol, modCol) {
+  document.getElementById('eval-metrics-grid').innerHTML=Object.entries(METRIC_INFO).map(([key,info])=>{
+    const val=r[key]; if (val==null) return '';
+    const good=info.good(val);
+    return `<div title="${info.desc}" style="background:var(--bg);border:1px solid ${good?'#10b98133':'#ef444433'};
+      border-radius:10px;padding:12px 14px;position:relative">
+      <div style="font-size:10px;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">${info.label}</div>
+      <div style="font-size:20px;font-weight:700;font-family:monospace;color:${good?'var(--green)':'var(--red)'}">
+        ${typeof val==='number'?val.toFixed(3):val}${info.unit}</div>
+      <div style="position:absolute;top:10px;right:10px;font-size:12px">${good?'✅':'❌'}</div>
+      <div style="font-size:10px;color:var(--text4);margin-top:2px">${info.desc}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('eval-equation').innerHTML=
+    `<span style="color:var(--text)">${modCol} = ${r.slope.toFixed(4)} × ${obsCol} + ${r.intercept.toFixed(4)}</span>
+     <span style="margin-left:16px;color:var(--blue)">R² = ${r.R2.toFixed(4)}</span>
+     <span style="margin-left:16px;color:var(--purple)">n = ${r.n.toLocaleString()}</span>`;
+
+  if (r.daily_stats&&Object.keys(r.daily_stats).length) {
+    document.getElementById('eval-daily-section').style.display='block';
+    document.getElementById('eval-daily-grid').innerHTML=[
+      ['Daily n',r.daily_stats.n,'','var(--blue)'],
+      ['Daily MB',r.daily_stats.MB,'',Math.abs(r.daily_stats.MB)<5?'var(--green)':'var(--red)'],
+      ['Daily RMSE',r.daily_stats.RMSE,'','var(--yellow)'],
+      ['Daily R',r.daily_stats.R,'',r.daily_stats.R>0.8?'var(--green)':'var(--red)'],
+      ['Daily R²',r.daily_stats.R2,'','var(--purple)'],
+    ].map(([label,value,,color])=>`<div class="stat-card"><div class="stat-label">${label}</div>
+      <div class="stat-value" style="color:${color}">${typeof value==='number'?value.toFixed(3):value}</div></div>`).join('');
+  }
+
+  // Scatter
+  const all=[...r.scatter.obs,...r.scatter.mod], mn=Math.min(...all), mx=Math.max(...all);
+  plotlyReady(()=>Plotly.react('eval-scatter-plot',[
+    {type:'scatter',mode:'markers',x:r.scatter.obs,y:r.scatter.mod,
+      marker:{color:'var(--blue)',opacity:.5,size:5},name:'Data Points'},
+    {type:'scatter',mode:'lines',x:[mn,mx],y:[r.slope*mn+r.intercept,r.slope*mx+r.intercept],
+      line:{color:'var(--red)',width:2,dash:'dash'},name:'Regression'},
+    {type:'scatter',mode:'lines',x:[mn,mx],y:[mn,mx],line:{color:'var(--green)',width:1,dash:'dot'},name:'1:1 Line'}
+  ], applyDarkLayout({title:`Scatter: ${obsCol} vs ${modCol}`,
+    xaxis:{title:obsCol},yaxis:{title:modCol},height:420}),PLOT_CONFIG));
+
+  // Taylor diagram (simplified as polar scatter)
+  plotlyReady(()=>Plotly.react('eval-taylor-plot',[
+    {type:'scatterpolar',r:[r.R*2],theta:[Math.acos(r.R)*180/Math.PI],
+      mode:'markers',marker:{size:14,color:'var(--blue)'},name:'Model'},
+    {type:'scatterpolar',r:[0],theta:[0],mode:'markers',marker:{size:14,color:'var(--green)',symbol:'star'},name:'Reference'},
+  ], applyDarkLayout({title:'Taylor Diagram',polar:{radialaxis:{range:[0,2.5]}},height:300}),PLOT_CONFIG));
+
+  // Bias time series
+  if (r.bias_ts?.length) {
+    plotlyReady(()=>Plotly.react('eval-bias-plot',[
+      {type:'scatter',mode:'lines',x:r.bias_ts.map(d=>d.datetime),y:r.bias_ts.map(d=>d.bias_pct),
+        line:{color:'var(--yellow)',width:1.5},name:'% Bias'},
+      {type:'scatter',mode:'lines',x:r.bias_ts.map(d=>d.datetime),y:r.bias_ts.map(()=>0),
+        line:{color:'var(--border2)',width:1,dash:'dot'},showlegend:false}
+    ], applyDarkLayout({title:'% Bias Over Time',xaxis:{title:'Date'},yaxis:{title:'Bias (%)'},height:300}),PLOT_CONFIG));
+  }
+
+  // Rating
+  const metCount=Object.keys(METRIC_INFO).filter(k=>r[k]!=null).length;
+  const goodCount=Object.entries(METRIC_INFO).filter(([k,info])=>r[k]!=null&&info.good(r[k])).length;
+  const score=Math.round(goodCount/metCount*100);
+  const rating=score>=80?'Excellent':score>=60?'Good':score>=40?'Acceptable':'Poor';
+  const ratingColor=score>=80?'var(--green)':score>=60?'var(--blue)':score>=40?'var(--yellow)':'var(--red)';
+  document.getElementById('eval-rating-label').textContent=rating;
+  document.getElementById('eval-rating-label').style.color=ratingColor;
+  document.getElementById('eval-rating-sub').textContent=`${goodCount} of ${metCount} criteria met`;
+  document.getElementById('eval-rating-bar').style.width=score+'%';
+  const criteriaKeys=['R','IOA','FAC2','NMB','NRMSE'];
+  document.getElementById('eval-criteria-grid').innerHTML=criteriaKeys.map(k=>{
+    const info=METRIC_INFO[k], val=r[k];
+    if (val==null) return '';
+    const met=info.good(val);
+    return `<div class="perf-criterion ${met?'met':'fail'}">
+      <div class="criterion-icon">${met?'✅':'❌'}</div>
+      <div style="font-weight:700;color:${met?'var(--green)':'var(--red)'};font-family:monospace">${val.toFixed(3)}${info.unit}</div>
+      <div class="criterion-label">${info.label}</div></div>`;
+  }).join('');
+  document.getElementById('eval-results').style.display='block';
+}
+
+// Init
+updatePlotControls();
+</script>
+</body>
+</html>
