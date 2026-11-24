@@ -705,7 +705,7 @@ function renderComparativeResults(r) {
     <div class="stat-card">
       <div class="comp-rank comp-rank-${rank}">#${rank}</div>
       <div class="stat-label">${station}</div>
-      <div class="stat-value" style="color:${STATION_COLORS[(rank-1)%STATION_COLORS.length]};font-size:18px">${mean.toFixed(2)}</div>
+      <div class="stat-value" style="color:${STATION_COLORS[(rank-1)%STATION_COLORS.length]}">${mean.toFixed(2)}</div>
       <div class="stat-unit">${col}</div>
     </div>`).join('');
 
@@ -808,7 +808,7 @@ function renderComparativeResults(r) {
       return Object.entries(exc).map(([k,v])=>`
         <div class="stat-card">
           <div class="stat-label">${n} — ${k.replace(/_/g,' ')}</div>
-          <div class="stat-value" style="color:${typeof v==='number'&&k.includes('pct')&&v>50?'var(--red)':'var(--yellow)'};font-size:18px">
+          <div class="stat-value" style="color:${typeof v==='number'&&k.includes('pct')&&v>50?'var(--red)':'var(--yellow)'}">
             ${typeof v==='number'?v.toFixed(1):v}${k.includes('pct')?'%':''}
           </div>
         </div>`);
@@ -825,7 +825,7 @@ function renderComparativeResults(r) {
         <div class="stat-card"><div class="stat-label">p-value</div>
           <div class="stat-value" style="color:${r.anova.significant?'var(--red)':'var(--green)'}">${r.anova.p_value}</div></div>
         <div class="stat-card"><div class="stat-label">Result</div>
-          <div class="stat-value" style="font-size:14px;color:${r.anova.significant?'var(--red)':'var(--green)'}">
+          <div class="stat-value" style="color:${r.anova.significant?'var(--red)':'var(--green)'}">
             ${r.anova.significant?'Significantly different (p<0.05)':'No significant difference'}</div></div>
       </div>`;
   }
@@ -1043,7 +1043,7 @@ async function loadStats() {
       {label:'Cleaned', value:STATE.isCleaned?'Yes':'No', color:STATE.isCleaned?'var(--green)':'var(--red)'},
       {label:'Provider',value:document.getElementById('clean-provider')?.value||'—', color:'var(--teal)'},
     ].map(s=>`<div class="stat-card"><div class="stat-label">${s.label}</div>
-      <div class="stat-value" style="color:${s.color};font-size:18px">${s.value}</div></div>`).join('');
+      <div class="stat-value" style="color:${s.color}">${s.value}</div></div>`).join('');
 
     // Missing
     const mp = data.missing_pct;
@@ -1763,7 +1763,7 @@ function renderExtremeResults(r) {
       </div><div style="font-size:11px;color:var(--text4)">${w['24h_exceed_n']} exceedance days</div>`:''}
     ${w.annual_standard!=null?`<div style="margin-top:10px;font-size:12px;color:var(--text3)">Annual: ${w.annual_standard} μg/m³</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-        <span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--text)">${(w.annual_mean||0).toFixed(2)}</span>
+        <span style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text)">${(w.annual_mean||0).toFixed(2)}</span>
         <span class="badge" style="background:${w.annual_exceed?'#ef444422':'#10b98122'};color:${w.annual_exceed?'var(--red)':'var(--green)'}">
           ${w.annual_exceed?'EXCEEDS':'COMPLIANT'}</span></div>`:''}
     ${w['8h_standard']!=null?`<div style="margin-top:10px;color:var(--text3);font-size:12px">8h: ${w['8h_standard']} μg/m³</div>`:''}
@@ -1781,7 +1781,7 @@ function renderExtremeResults(r) {
       </div><div style="font-size:11px;color:var(--text4)">${ep['24h_exceed_n']} exceedance days</div>`:''}
     ${ep.annual_standard!=null?`<div style="margin-top:10px;font-size:12px;color:var(--text3)">Annual: ${ep.annual_standard} μg/m³</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-        <span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--text)">${(ep.annual_mean||0).toFixed(2)}</span>
+        <span style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text)">${(ep.annual_mean||0).toFixed(2)}</span>
         <span class="badge" style="background:${ep.annual_exceed?'#ef444422':'#10b98122'};color:${ep.annual_exceed?'var(--red)':'var(--green)'}">
           ${ep.annual_exceed?'EXCEEDS':'COMPLIANT'}</span></div>`:''}
     ${ep['8h_standard']!=null?`<div style="margin-top:10px;color:var(--text3);font-size:12px">8h: ${ep['8h_standard']} μg/m³</div>`:''}
@@ -1862,7 +1862,7 @@ function renderCompliance(data) {
     ['Valid readings',data.readings,'var(--blue)'],['Missing',`${data.missing_percent}%`,'var(--yellow)'],
     ['Sampling interval',data.sampling_interval_hours?`${data.sampling_interval_hours} h`:'Unknown','var(--purple)'],
     ['Period',`${data.first_reading.slice(0,10)} to ${data.last_reading.slice(0,10)}`,'var(--teal)']
-  ].map(([label,value,color])=>`<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="font-size:16px;color:${color}">${value}</div></div>`).join('');
+  ].map(([label,value,color])=>`<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value" style="color:${color}">${value}</div></div>`).join('');
   document.getElementById('compliance-standards').innerHTML = data.standards.length ? data.standards.map(item => `
     <div class="card" style="border-top:3px solid ${item.exceedance_count?'var(--red)':'var(--green)'}">
       <div class="card-title">${item.authority} · ${item.period}</div>

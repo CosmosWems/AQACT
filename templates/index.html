@@ -49,7 +49,7 @@
   onerror="this.onerror=null;this.src='https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js'"></script>
 
 <!-- Celestial Admin is the single application style layer. -->
-<link rel="stylesheet" href="/static/css/celestial.css?v=2.0.1"/>
+<link rel="stylesheet" href="/static/css/celestial.css?v=2.0.2"/>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
@@ -185,30 +185,54 @@
 
   <section class="hero">
     <div class="hero-copy">
-      <span class="eyebrow"><span class="pulse-dot"></span> Local-first scientific workspace</span>
-      <h1>Turn sensor files into defensible air-quality insight.</h1>
-      <p>Upload a logger export, clean it with a provider-aware pipeline, explore trends and anomalies, and export publication-ready figures on this machine. The AI assistant is keyless: it runs in your browser through Puter.js, with automatic model routing and local analysis as the fallback.</p>
-      <div class="hero-actions">
-        <button id="demo-btn" class="btn btn-primary btn-lg" onclick="loadDemoDataset()">Explore demo dataset</button>
-        <button class="btn btn-ghost btn-lg" onclick="document.getElementById('file-input').click()">Choose files</button>
-        <button class="btn btn-ghost btn-lg" onclick="openAssistant()">Ask the assistant</button>
-      </div>
-      <div class="hero-points">
-        <span>Local-first analysis</span><span>Provider-aware cleaning</span><span>Publication exports</span>
+      <div class="intro-card">
+        <div class="intro-main">
+          <span class="eyebrow"><span class="pulse-dot"></span> Local-first scientific workspace</span>
+          <h1 class="hero-title"><span class="hero-title-line">Turn your sensor data into</span><span class="hero-title-line">defensible air-quality</span><span class="hero-title-line">insight.</span></h1>
+          <div class="hero-actions">
+            <button id="demo-btn" class="btn btn-primary btn-lg" onclick="loadDemoDataset()">Explore demo dataset</button>
+            <button class="btn btn-ghost btn-lg" onclick="document.getElementById('file-input').click()">Choose files</button>
+            <button class="btn btn-ghost btn-lg" onclick="openAssistant()">Ask the assistant</button>
+          </div>
+          <div class="hero-points">
+            <span>Local-first analysis</span><span>Provider-aware cleaning</span><span>Publication exports</span>
+          </div>
+        </div>
+        <div class="intro-floats" aria-label="Workspace highlights">
+          <aside class="intro-float-card mini-card mini-card-compact" aria-label="Workspace overview">
+            <div class="mini-label">Workspace overview</div>
+            <p class="mini-text intro-float-text">Upload a logger export, clean it with a provider-aware pipeline, explore trends and anomalies, and export publication-ready figures on this machine. The AI assistant is keyless: it runs in your browser through Puter.js, with automatic model routing and local analysis as the fallback.</p>
+          </aside>
+          <div class="intro-mini-row">
+            <div class="mini-card mini-card-compact mini-card-stat">
+              <div class="mini-label">PM2.5 · 24 h</div>
+              <div class="mini-value">18.4 <small>µg/m³</small></div>
+              <div class="mini-foot"><span class="mini-dot"></span> Within WHO guideline</div>
+            </div>
+            <div class="mini-card mini-card-compact mini-card-insight">
+              <div class="mini-label">Assistant insight</div>
+              <div class="mini-text">Morning peaks dominate; one sensor spike needs review.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="hero-visual" aria-hidden="true">
-      <div class="mini-card">
-        <div class="mini-label">PM2.5 · 24 h</div>
-        <div class="mini-value">18.4 <small>µg/m³</small></div>
-        <div class="mini-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="mini-foot"><span class="mini-dot"></span> Within WHO guideline</div>
+    <aside class="hero-providers" aria-label="Supported data providers">
+      <div class="section-divider hero-providers-title">Supported Data Providers</div>
+      <div class="providers-grid hero-providers-grid">
+        <a class="provider-card" href="https://www.purpleair.com/" target="_blank" rel="noopener" style="border-left-color:var(--purple)"><div class="provider-name" style="color:var(--purple)">PURPLEAIR</div><div class="provider-desc">PA-I/PA-II. EPA-TTQ PM2.5 correction. SD card daily files supported via Batch Stack.</div></a>
+        <a class="provider-card" href="https://blues.com/products/airnote/" target="_blank" rel="noopener" style="border-left-color:var(--blue)"><div class="provider-name" style="color:var(--blue)">AIRNOTE</div><div class="provider-desc">Blues Wireless environmental sensors with full met suite.</div></a>
+        <a class="provider-card" href="https://www.airgradient.com/" target="_blank" rel="noopener" style="border-left-color:var(--teal)"><div class="provider-name" style="color:var(--teal)">AIRGRADIENT</div><div class="provider-desc">Open-source monitors. CO₂, PM, NO₂, VOC.</div></a>
+        <a class="provider-card" href="https://www.clarity.io/" target="_blank" rel="noopener" style="border-left-color:var(--green)"><div class="provider-name" style="color:var(--green)">CLARITY</div><div class="provider-desc">Clarity Node laser particle counters.</div></a>
+        <a class="provider-card" href="https://www.airqo.net/" target="_blank" rel="noopener" style="border-left-color:var(--yellow)"><div class="provider-name" style="color:var(--yellow)">AIRQO</div><div class="provider-desc">AirQo low-cost sensor network across Africa.</div></a>
+        <a class="provider-card" href="https://airqoon.com/" target="_blank" rel="noopener" style="border-left-color:var(--orange)"><div class="provider-name" style="color:var(--orange)">AIRQOON</div><div class="provider-desc">AirQoon balloon-borne sensor with full met data.</div></a>
+        <a class="provider-card" href="https://www.habitatmap.org/airbeam" target="_blank" rel="noopener" style="border-left-color:var(--pink)"><div class="provider-name" style="color:var(--pink)">AIRBEAM</div><div class="provider-desc">GPS-tagged mobile monitor. Daily session files supported in Batch Stack.</div></a>
+        <a class="provider-card" href="https://sensirion.com/products/catalog/?category=Air+Quality" target="_blank" rel="noopener" style="border-left-color:#06b6d4"><div class="provider-name" style="color:#06b6d4">SENSIRION SEN5x/SPS30</div><div class="provider-desc">PM1–PM10 + NC fractions + VOC/NOx index + CO₂.</div></a>
+        <a class="provider-card" href="https://atmotube.com/" target="_blank" rel="noopener" style="border-left-color:#8b5cf6"><div class="provider-name" style="color:#8b5cf6">ATMOTUBE PRO</div><div class="provider-desc">Wearable/portable. PM1/2.5/10, VOC, GPS, met.</div></a>
+        <a class="provider-card" href="http://www.plantower.com/en/" target="_blank" rel="noopener" style="border-left-color:#10b981"><div class="provider-name" style="color:#10b981">PLANTOWER PMS5003/7003</div><div class="provider-desc">PM std/atm + particle counts per 0.1L. Logger CSV.</div></a>
+        <div class="provider-card" style="border-left-color:var(--text3);cursor:default"><div class="provider-name" style="color:var(--text3)">GENERIC / AUTO-DETECT</div><div class="provider-desc">Auto-maps column names for any CSV with recognisable air quality fields.</div></div>
       </div>
-      <div class="mini-card mini-card-2">
-        <div class="mini-label">Assistant insight</div>
-        <div class="mini-text">Morning peaks dominate; one sensor spike needs review.</div>
-      </div>
-    </div>
+    </aside>
   </section>
 
   <div class="flip-card" id="upload-flip">
@@ -294,21 +318,7 @@
     </div>
   </div>
 
-  <!-- Provider info -->
-  <div class="section-divider">Supported Data Providers</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px">
-    <a class="provider-card" href="https://www.purpleair.com/" target="_blank" rel="noopener" style="border-left-color:var(--purple)"><div class="provider-name" style="color:var(--purple)">PURPLEAIR</div><div class="provider-desc">PA-I/PA-II. EPA-TTQ PM2.5 correction. SD card daily files supported via Batch Stack.</div></a>
-    <a class="provider-card" href="https://blues.com/products/airnote/" target="_blank" rel="noopener" style="border-left-color:var(--blue)"><div class="provider-name" style="color:var(--blue)">AIRNOTE</div><div class="provider-desc">Blues Wireless environmental sensors with full met suite.</div></a>
-    <a class="provider-card" href="https://www.airgradient.com/" target="_blank" rel="noopener" style="border-left-color:var(--teal)"><div class="provider-name" style="color:var(--teal)">AIRGRADIENT</div><div class="provider-desc">Open-source monitors. CO₂, PM, NO₂, VOC.</div></a>
-    <a class="provider-card" href="https://www.clarity.io/" target="_blank" rel="noopener" style="border-left-color:var(--green)"><div class="provider-name" style="color:var(--green)">CLARITY</div><div class="provider-desc">Clarity Node laser particle counters.</div></a>
-    <a class="provider-card" href="https://www.airqo.net/" target="_blank" rel="noopener" style="border-left-color:var(--yellow)"><div class="provider-name" style="color:var(--yellow)">AIRQO</div><div class="provider-desc">AirQo low-cost sensor network across Africa.</div></a>
-    <a class="provider-card" href="https://airqoon.com/" target="_blank" rel="noopener" style="border-left-color:var(--orange)"><div class="provider-name" style="color:var(--orange)">AIRQOON</div><div class="provider-desc">AirQoon balloon-borne sensor with full met data.</div></a>
-    <a class="provider-card" href="https://www.habitatmap.org/airbeam" target="_blank" rel="noopener" style="border-left-color:var(--pink)"><div class="provider-name" style="color:var(--pink)">AIRBEAM</div><div class="provider-desc">GPS-tagged mobile monitor. Daily session files supported in Batch Stack.</div></a>
-    <a class="provider-card" href="https://sensirion.com/products/catalog/?category=Air+Quality" target="_blank" rel="noopener" style="border-left-color:#06b6d4"><div class="provider-name" style="color:#06b6d4">SENSIRION SEN5x/SPS30</div><div class="provider-desc">PM1–PM10 + NC fractions + VOC/NOx index + CO₂.</div></a>
-    <a class="provider-card" href="https://atmotube.com/" target="_blank" rel="noopener" style="border-left-color:#8b5cf6"><div class="provider-name" style="color:#8b5cf6">ATMOTUBE PRO</div><div class="provider-desc">Wearable/portable. PM1/2.5/10, VOC, GPS, met.</div></a>
-    <a class="provider-card" href="http://www.plantower.com/en/" target="_blank" rel="noopener" style="border-left-color:#10b981"><div class="provider-name" style="color:#10b981">PLANTOWER PMS5003/7003</div><div class="provider-desc">PM std/atm + particle counts per 0.1L. Logger CSV.</div></a>
-    <div class="provider-card" style="border-left-color:var(--text3);cursor:default"><div class="provider-name" style="color:var(--text3)">GENERIC / AUTO-DETECT</div><div class="provider-desc">Auto-maps column names for any CSV with recognisable air quality fields.</div></div>
-  </div>
+
 
 </div>
 
@@ -1384,8 +1394,10 @@
 <!-- TAB: EXTREME                                            -->
 <!-- ════════════════════════════════════════════════════════ -->
 <div id="panel-extreme" class="tab-panel">
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Extreme Value Analysis</h2>
-  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Block maxima, Gumbel return levels, WHO/EPA exceedance, top-N events.</p>
+  <div class="analysis-header">
+    <h2>Extreme Value Analysis</h2>
+    <p>Block maxima, Gumbel return levels, WHO/EPA exceedance, top-N events.</p>
+  </div>
   <div class="card">
     <div class="card-title">Analysis Configuration</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:16px">
@@ -1504,8 +1516,10 @@
 <!-- TAB: COMPLIANCE                                        -->
 <!-- ════════════════════════════════════════════════════════ -->
 <div id="panel-compliance" class="tab-panel">
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:6px">Compliance Monitor</h2>
-  <p style="color:var(--text3);font-size:13px;margin-bottom:22px">Identify guideline exceedances, document episodes, and prepare an evidence-based response.</p>
+  <div class="analysis-header">
+    <h2>Compliance Monitor</h2>
+    <p>Identify guideline exceedances, document episodes, and prepare an evidence-based response.</p>
+  </div>
   <div class="card">
     <div class="card-title">Monitoring Configuration</div>
     <div class="grid2" style="margin-bottom:14px">
@@ -1856,6 +1870,6 @@
 
 <script src="/static/js/app.js"></script>
 <script src="/static/js/enhancements.js"></script>
-<script type="module" src="/static/js/assistant.js?v=2.0.1"></script>
+<script type="module" src="/static/js/assistant.js?v=2.0.2"></script>
 </body>
 </html>

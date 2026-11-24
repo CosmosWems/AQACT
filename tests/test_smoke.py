@@ -337,8 +337,8 @@ class AqactApiTests(unittest.TestCase):
         assistant_js = (root / "static" / "js" / "assistant.js").read_text(encoding="utf-8")
 
         self.assertIn('/static/css/celestial.css', index_html)
-        self.assertIn('/static/css/celestial.css?v=2.0.1', index_html)
-        self.assertIn('/static/js/assistant.js?v=2.0.1', index_html)
+        self.assertIn('/static/css/celestial.css?v=2.0.2', index_html)
+        self.assertIn('/static/js/assistant.js?v=2.0.2', index_html)
         for legacy in ("app.css", "modern.css", "components.css", "atelier.css"):
             self.assertNotIn(f'/static/css/{legacy}', index_html)
         for needed in (
